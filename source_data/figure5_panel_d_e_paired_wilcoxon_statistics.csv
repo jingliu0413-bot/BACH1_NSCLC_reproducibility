@@ -1,0 +1,9 @@
+metric,n_pairs,wilcoxon_p,median_delta_tumor_minus_adjacent
+BACH1_mean,8,0.109375,0.0220360066741704
+BACH1_detected_fraction,8,0.0078125,0.06186164151228
+NOD_like_score_mean,8,0.3828125,0.018667334959706
+NOD_like_mean_logexpr_mean,8,0.109375,0.0407322663813829
+BACH1_NOD_spearman_rho,8,0.078125,0.0213468873560169
+BACH1_to_neighbor_NOD_spearman_rho,8,0.109375,0.0231156004658241
+high_high_enrichment,8,0.1484375,0.2159365393244664
+high_high_jaccard,8,0.0078125,0.0335695395404586

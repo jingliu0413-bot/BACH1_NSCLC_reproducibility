@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Environments and editors
+.venv/
+venv/
+envs/
+.conda/
+.idea/
+.vscode/
+
+# Project data and generated results
+data/
+out/
+tmp/
+logs/
+*.h5
+*.h5ad
+*.loom
+*.rds
+*.mtx
+*.tar
+*.tar.gz
+*.tif
+*.tiff
+
+# Large third-party resources are downloaded from their original providers.
+resources/*.feather
+resources/*.tbl
+resources/*.gtf.gz
+resources/*.tsv.gz
+
+# OS files
+.DS_Store
+Thumbs.db
