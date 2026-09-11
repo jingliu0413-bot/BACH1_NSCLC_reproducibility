@@ -1,11 +1,19 @@
-# Figure source data
+# Source Data
 
-This directory contains the lightweight tables used for Figures 1-5, Figure S1 and the BACH1/NOD-like receptor locus display. Raw matrices, intermediate AnnData objects and external databases are intentionally excluded.
+This directory contains lightweight generated tables that support inspection of the reported analyses. Raw sequencing matrices, intermediate AnnData objects and external databases are intentionally excluded.
 
-Figure S1 follows the requested three-panel layout in the released code:
+## Current Submission Tables
 
-- Figure S1a: workflow schematic; no numeric source table.
-- Figure S1b: `figure_s1_panel_b_epithelial_cnv_burden_umap.csv.gz`.
-- Figure S1c: `figure_s1_panel_c_sensitive_cnv_cluster_thresholds.csv`.
+`if5_submission_20260911/` contains the current IF5-oriented submission source tables, including:
 
-The former CNV set-size panel and genome-wide mean-profile panel are not part of this release. Figure source tables support inspection and plotting but do not replace the public raw data required for full reanalysis.
+- external BACH1 signature and patient-level activity summaries;
+- DoRothEA-hypoxia overlap, de-overlapped scoring, matched-null and QC-adjusted sensitivity outputs;
+- TCGA-LUAD/LUSC score-association and adjusted-model outputs;
+- current restricted-consensus Figure 4 pySCENIC source data;
+- spatial threshold and leave-one-patient-out sensitivity tables.
+
+These tables are generated from scripts in `scripts/` and correspond to the manuscript version prepared on 2026-09-11.
+
+## Legacy Root-Level Tables
+
+Root-level `figure*` source tables are retained from the first code-release package to preserve earlier figure reproducibility. The current manuscript figure mapping is documented in `docs/WORKFLOW.md`; use `if5_submission_20260911/` for the latest submission-level tabular outputs.

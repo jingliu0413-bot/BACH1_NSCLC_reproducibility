@@ -1,0 +1,17 @@
+dataset,patient,sample_id,sample,tumour_type,tissue_status,n_primary_malignant_epithelial_cells,n_BACH1_detected,BACH1_detected_fraction,mean_BACH1_expression,malignant_call_logic
+GSE131907,P0006,GSE131907_LUNG_T06,LUNG_T06,lung adenocarcinoma,tumor,84,9,0.10714285714285714,0.06742226616257713,author tS1/tS2/tS3 tumour epithelial annotation
+GSE131907,P0008,GSE131907_LUNG_T08,LUNG_T08,lung adenocarcinoma,tumor,22,4,0.18181818181818182,0.10370674593882127,author tS1/tS2/tS3 tumour epithelial annotation
+GSE131907,P0009,GSE131907_LUNG_T09,LUNG_T09,lung adenocarcinoma,tumor,5,1,0.2,0.11101366281509399,author tS1/tS2/tS3 tumour epithelial annotation
+GSE131907,P0018,GSE131907_LUNG_T18,LUNG_T18,lung adenocarcinoma,tumor,630,135,0.21428571428571427,0.14176788221275996,author tS1/tS2/tS3 tumour epithelial annotation
+GSE131907,P0019,GSE131907_LUNG_T19,LUNG_T19,lung adenocarcinoma,tumor,197,29,0.14720812182741116,0.11290635085347946,author tS1/tS2/tS3 tumour epithelial annotation
+GSE131907,P0020,GSE131907_LUNG_T20,LUNG_T20,lung adenocarcinoma,tumor,309,104,0.3365695792880259,0.2169705629830993,author tS1/tS2/tS3 tumour epithelial annotation
+GSE131907,P0025,GSE131907_LUNG_T25,LUNG_T25,lung adenocarcinoma,tumor,203,17,0.08374384236453201,0.07935031646578183,author tS1/tS2/tS3 tumour epithelial annotation
+GSE131907,P0028,GSE131907_LUNG_T28,LUNG_T28,lung adenocarcinoma,tumor,700,157,0.22428571428571428,0.13006103613546915,author tS1/tS2/tS3 tumour epithelial annotation
+GSE131907,P0030,GSE131907_LUNG_T30,LUNG_T30,lung adenocarcinoma,tumor,752,94,0.125,0.13186679507031085,author tS1/tS2/tS3 tumour epithelial annotation
+GSE131907,P0031,GSE131907_LUNG_T31,LUNG_T31,lung adenocarcinoma,tumor,121,16,0.1322314049586777,0.11136476880262706,author tS1/tS2/tS3 tumour epithelial annotation
+GSE131907,P0034,GSE131907_LUNG_T34,LUNG_T34,lung adenocarcinoma,tumor,2116,430,0.20321361058601134,0.13710780061485636,author tS1/tS2/tS3 tumour epithelial annotation
+GSE274934,AL02,GSE274934_AL02,AL02,WT LUAD,tumor,2,0,0.0,0.0,tumour epithelial cell with >=1 expression-derived CNV support
+GSE274934,AL06,GSE274934_AL06,AL06,ALK-positive LUAD,tumor,347,158,0.4553314121037464,0.4386100132630263,tumour epithelial cell with >=1 expression-derived CNV support
+GSE274934,AL08,GSE274934_AL08,AL08,WT LUAD,tumor,4351,623,0.14318547460353942,0.12852819567026968,tumour epithelial cell with >=1 expression-derived CNV support
+GSE274934,AL10,GSE274934_AL10,AL10,ALK-positive LUAD,tumor,1372,222,0.1618075801749271,0.10602346706711864,tumour epithelial cell with >=1 expression-derived CNV support
+GSE274934,AL11,GSE274934_AL11,AL11,WT LUAD,tumor,2483,644,0.2593636729762384,0.21349901551447517,tumour epithelial cell with >=1 expression-derived CNV support

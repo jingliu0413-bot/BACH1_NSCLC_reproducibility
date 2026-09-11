@@ -200,7 +200,7 @@ def draw_workflow(ax, counts):
         ha="left",
         va="center",
     )
-    ax.set_title("CNV-based malignant epithelial cell definition", loc="left", fontsize=8, pad=2)
+    ax.set_title("CNV workflow", loc="left", fontsize=8, pad=2)
 
 
 def plot_umap_continuous(ax, df):
@@ -218,7 +218,7 @@ def plot_umap_continuous(ax, df):
         linewidths=0,
         rasterized=True,
     )
-    ax.set_title("Sensitive CNV burden on epithelial UMAP", loc="left", fontsize=8, pad=2)
+    ax.set_title("CNV burden", loc="left", fontsize=8, pad=2)
     format_umap_axes(ax)
     cb = plt.colorbar(sc, ax=ax, fraction=0.046, pad=0.02)
     cb.set_label("CNV burden", fontsize=5.5)
@@ -251,8 +251,8 @@ def plot_method_counts(ax, summary, epi_df):
     rows = [
         ("Strict\nT/NK q99", int(summary.loc[summary["method_or_set"].eq("tnk_strict_dynamic_threshold"), "n_cells"].iloc[0])),
         ("Consensus\n>=2 methods", int(summary.loc[summary["method_or_set"].eq("cnv_consensus_at_least_two_methods"), "n_cells"].iloc[0])),
+        ("Single-method\nworking calls", int(summary.loc[summary["method_or_set"].eq("single_cnv_method_only"), "n_cells"].iloc[0])),
         ("Working\nmalignant set", int(summary.loc[summary["method_or_set"].eq("recommended_working_set"), "n_cells"].iloc[0])),
-        ("pySCENIC\ninput", 6073),
     ]
     df = pd.DataFrame(rows, columns=["set", "n_cells"])
     x = np.arange(len(df))
@@ -261,7 +261,7 @@ def plot_method_counts(ax, summary, epi_df):
     ax.set_xticks(x)
     ax.set_xticklabels(df["set"], fontsize=6)
     ax.set_ylabel("Cells")
-    ax.set_title("CNV-derived malignant sets", loc="left", fontsize=8)
+    ax.set_title("CNV sets", loc="left", fontsize=8)
     ax.grid(axis="y", color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
     for xi, row in enumerate(df.itertuples(index=False)):
@@ -295,7 +295,7 @@ def plot_sample_fraction(ax, by_sample):
     ax.set_yticklabels(labels, fontsize=4.9)
     ax.set_xlim(0, 1)
     ax.set_xlabel("Working malignant fraction")
-    ax.set_title("Working malignant cells by sample", loc="left", fontsize=8)
+    ax.set_title("By sample", loc="left", fontsize=8)
     ax.grid(axis="x", color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
     for yi, row in enumerate(pivot.itertuples(index=False)):
@@ -402,7 +402,7 @@ def plot_group_cnv_heatmap(ax):
     ax.set_xticks(chrom_mid["mid"].to_numpy())
     ax.set_xticklabels([c.replace("chr", "") for c in chrom_mid["chromosome"]], fontsize=4.8)
     ax.set_xlabel("Chromosome")
-    ax.set_title("Genome-wide mean CNV profile by evidence class", loc="left", fontsize=8)
+    ax.set_title("Mean CNV profiles", loc="left", fontsize=8)
     cb = plt.colorbar(im, ax=ax, fraction=0.035, pad=0.015)
     cb.set_label("Centered CNV signal", fontsize=5.4)
     cb.ax.tick_params(labelsize=5, width=0.4)
@@ -422,7 +422,7 @@ def plot_cluster_threshold(ax):
         ax.text(row.median_cnv_burden, row.fraction_cellwise_high + 0.035, str(row.cnv_leiden), ha="center", va="bottom", fontsize=5.6, color=COL["dark"])
     ax.set_xlabel("Cluster median CNV burden")
     ax.set_ylabel("Fraction CNV-high cells")
-    ax.set_title("CNV clusters passing the sensitive threshold", loc="left", fontsize=8)
+    ax.set_title("CNV clusters", loc="left", fontsize=8)
     ax.grid(color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
     ax.text(0.98, 0.05, f"threshold={threshold:.3f}", transform=ax.transAxes, ha="right", va="bottom", fontsize=5.6, color=COL["grey"])
@@ -456,8 +456,7 @@ def main():
     plot_cluster_threshold(ax_c)
     add_panel_label(ax_c, "c")
 
-    fig.suptitle("CNV inference supports malignant epithelial cell selection for downstream BACH1 analysis", x=0.02, y=0.995, ha="left", fontsize=11, fontweight="bold")
-    fig.subplots_adjust(top=0.93, left=0.055, right=0.985, bottom=0.07)
+    fig.subplots_adjust(top=0.95, left=0.055, right=0.985, bottom=0.07)
     save_all(fig, "figure_s1_cnv_malignant_epithelial_support")
     print(f"Wrote Figure S1 to {FIG_DIR}")
     print(f"Copied publication PDF to {FINAL_DIR / 'Figure S1.pdf'}")

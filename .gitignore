@@ -9,12 +9,15 @@ __pycache__/
 venv/
 envs/
 .conda/
+environment/*venv*/
 .idea/
 .vscode/
 
 # Project data and generated results
 data/
 out/
+outputs/
+work/
 tmp/
 logs/
 *.h5
@@ -26,12 +29,29 @@ logs/
 *.tar.gz
 *.tif
 *.tiff
+*.sqlite
+*.sqlite3
+*.db
 
 # Large third-party resources are downloaded from their original providers.
 resources/*.feather
 resources/*.tbl
 resources/*.gtf.gz
 resources/*.tsv.gz
+resources/**/*.feather
+resources/**/*.tbl
+resources/**/*.gtf.gz
+resources/**/*.tsv.gz
+resources/pyscenic/
+resources/atac_motif_support/
+resources/bach1_external_signatures/
+
+# Local handoff notes and manuscript build artifacts are not part of the public code release.
+docs/CODEX_HANDOFF_CN.md
+scripts/build_if5_supplementary_workbook.mjs
+scripts/polish_existing_pdf_figures.py
+scripts/polish_manuscript_prose_and_references.py
+scripts/revise_manuscript_for_*.py
 
 # OS files
 .DS_Store

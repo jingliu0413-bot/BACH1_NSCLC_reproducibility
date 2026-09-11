@@ -1,8 +1,9 @@
-"""Generate SHA256 checksums for the lightweight repository contents."""
+"""Generate SHA256 checksums for lightweight Git-tracked release contents."""
 
 from __future__ import annotations
 
 import hashlib
+import subprocess
 from pathlib import Path
 
 
@@ -20,9 +21,17 @@ def digest(path: Path) -> str:
 
 
 def main() -> None:
+    result = subprocess.run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
     files = []
-    for path in ROOT.rglob("*"):
-        relative = path.relative_to(ROOT)
+    for line in result.stdout.splitlines():
+        relative = Path(line)
+        path = ROOT / relative
         if not path.is_file() or path == OUTPUT or EXCLUDED_PARTS.intersection(relative.parts):
             continue
         files.append(relative)

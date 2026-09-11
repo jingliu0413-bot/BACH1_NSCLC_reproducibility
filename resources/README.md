@@ -1,4 +1,4 @@
-# External resources
+# External Resources
 
 Large reference files are not redistributed. Run:
 
@@ -15,3 +15,5 @@ The script downloads and verifies the exact resources used in the study:
 - GENCODE human release 44 GRCh38.p14 annotation.
 
 The two provider-supplied cisTarget SHA1 files are retained in this directory. SHA256 checksums for every external resource are embedded in the download script.
+
+The current scATAC target-window analysis can also query the UCSC hg38 JASPAR2026 bigBed track directly with `scripts/run_bach1_atac_motif_support_ucsc_targeted.py`, avoiding redistribution of genome-wide TFBS files.

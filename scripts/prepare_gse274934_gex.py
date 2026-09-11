@@ -31,9 +31,9 @@ def gene_flags(var_names: pd.Index) -> pd.DataFrame:
     hb_genes = {"HBA1", "HBA2", "HBB", "HBD", "HBE1", "HBG1", "HBG2", "HBM", "HBQ1", "HBZ"}
     return pd.DataFrame(
         {
-            "mt": symbols.str.startswith("MT-").to_numpy(),
-            "ribo": symbols.str.match(r"^RP[SL][0-9A-Z]+").to_numpy(),
-            "hb": symbols.isin(hb_genes).to_numpy(),
+            "mt": np.asarray(symbols.str.startswith("MT-"), dtype=bool),
+            "ribo": np.asarray(symbols.str.match(r"^RP[SL][0-9A-Z]+"), dtype=bool),
+            "hb": np.asarray(symbols.isin(hb_genes), dtype=bool),
         },
         index=var_names,
     )

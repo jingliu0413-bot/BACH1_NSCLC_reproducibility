@@ -1,3 +1,4 @@
+import argparse
 import gzip
 import json
 import os
@@ -212,6 +213,12 @@ def build_peaks_by_chrom(peaks: pd.DataFrame):
 
 
 def update_peak_motif_overlaps(peaks_by_chrom, motif_file: Path, model: str, motif_name: str):
+    if not motif_file.exists():
+        raise FileNotFoundError(
+            f"Missing motif track {motif_file}. "
+            "Run scripts/download_reference_resources.py, or provide --resource-dir with "
+            "MA1633.2.tsv.gz and MA0591.2.tsv.gz."
+        )
     agg = {}
     active = []
     current_chrom = None
@@ -231,7 +238,12 @@ def update_peak_motif_overlaps(peaks_by_chrom, motif_file: Path, model: str, mot
             motif_start = int(fields[1])
             motif_end = int(fields[2])
             score = float(fields[4])
-            rel_score = float(fields[5]) if len(fields) > 5 else np.nan
+            # JASPAR TSV tracks use score/relative-score/strand; UCSC exports use
+            # score/strand/TFName. Keep both readable so provenance checks can use
+            # either official representation.
+            rel_score = np.nan
+            if len(fields) > 5 and fields[5] not in {"+", "-"}:
+                rel_score = float(fields[5])
 
             if chrom != current_chrom:
                 current_chrom = chrom
@@ -445,7 +457,43 @@ def read_expressed_genes(matrix_csv: Path) -> list[str]:
     return [x for x in cols if x]
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--atac-dir", type=Path, default=ATAC_DIR)
+    parser.add_argument("--resource-dir", type=Path, default=RESOURCE_DIR)
+    parser.add_argument("--pyscenic-dir", type=Path, default=PYSCENIC_DIR)
+    parser.add_argument("--target-table", type=Path, default=None)
+    parser.add_argument("--pyscenic-matrix", type=Path, default=None)
+    parser.add_argument("--output-dir", type=Path, default=OUT_DIR)
+    return parser.parse_args()
+
+
 def run():
+    global ATAC_DIR, RESOURCE_DIR, PYSCENIC_DIR, OUT_DIR, TABLE_DIR, TARGET_TABLE, PYSCENIC_MATRIX, GTF, MOTIF_FILES
+
+    args = parse_args()
+    ATAC_DIR = args.atac_dir
+    RESOURCE_DIR = args.resource_dir
+    PYSCENIC_DIR = args.pyscenic_dir
+    OUT_DIR = args.output_dir
+    TABLE_DIR = OUT_DIR / "tables"
+    TABLE_DIR.mkdir(parents=True, exist_ok=True)
+    TARGET_TABLE = args.target_table or (PYSCENIC_DIR / "tables" / "pyscenic_bach1_regulon_targets_integrated.csv")
+    PYSCENIC_MATRIX = args.pyscenic_matrix or (PYSCENIC_DIR / "malignant_epithelial_counts_filtered_for_pyscenic.csv")
+    GTF = RESOURCE_DIR / "gencode.v44.annotation.gtf.gz"
+    MOTIF_FILES = [
+        {
+            "model": "MA1633.2",
+            "motif_name": "BACH1",
+            "path": RESOURCE_DIR / "MA1633.2.tsv.gz",
+        },
+        {
+            "model": "MA0591.2",
+            "motif_name": "Bach1::Mafk",
+            "path": RESOURCE_DIR / "MA0591.2.tsv.gz",
+        },
+    ]
+
     h5_files = sorted(ATAC_DIR.glob("*_ATAC_filtered_peak_bc_matrix.h5"))
     singlecell_files = sorted(ATAC_DIR.glob("*_ATAC_singlecell.csv.gz"))
     if not h5_files:

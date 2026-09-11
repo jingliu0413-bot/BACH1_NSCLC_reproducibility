@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 from scipy.optimize import minimize_scalar
-from scipy.stats import gaussian_kde, mannwhitneyu
+from scipy.stats import gaussian_kde
 
 from project_paths import PROJECT_ROOT
 
@@ -31,6 +31,7 @@ FINAL_FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 ATLAS_H5AD = ROOT / "out" / "scanpy_downstream_scrublet" / "nsclc_gse131907_gse274934_scanpy_downstream_analysis.h5ad"
 EPI_H5AD = ROOT / "out" / "epithelial_reclustering" / "nsclc_gse131907_gse274934_epithelial_recluster_analysis.h5ad"
+PRIMARY_H5AD = ROOT / "out" / "bach1_malignant_epithelial_primary" / "nsclc_malignant_epithelial_primary_bach1_analysis_object.h5ad"
 BACH1_H5AD = ROOT / "out" / "bach1_malignant_epithelial_pyscenic" / "malignant_epithelial_bach1_pyscenic_aucell_annotated.h5ad"
 
 PYS_TARGETS = ROOT / "out" / "bach1_malignant_epithelial_pyscenic" / "tables" / "pyscenic_bach1_regulon_targets_integrated.csv"
@@ -191,7 +192,8 @@ def plot_umap_categorical(ax, df, color_col, colors, title, s=1.0, alpha=0.75, l
         ax.scatter(sub["UMAP1"], sub["UMAP2"], s=s, c=colors.get(cat, COL["grey"]), alpha=alpha, linewidths=0, rasterized=True)
         if label:
             ax.text(sub["UMAP1"].median(), sub["UMAP2"].median(), str(cat), fontsize=5.5, ha="center", va="center")
-    ax.set_title(title, loc="left", fontsize=8, pad=2)
+    if title:
+        ax.set_title(title, loc="left", fontsize=8, pad=2)
     format_umap_axes(ax)
 
 
@@ -210,7 +212,8 @@ def plot_umap_continuous(ax, df, value_col, title, cmap="magma", s=2.8):
         linewidths=0,
         rasterized=True,
     )
-    ax.set_title(title, loc="left", fontsize=8, pad=2)
+    if title:
+        ax.set_title(title, loc="left", fontsize=8, pad=2)
     format_umap_axes(ax)
     cb = plt.colorbar(sc, ax=ax, fraction=0.045, pad=0.02)
     cb.ax.tick_params(labelsize=5, width=0.4)
@@ -223,21 +226,24 @@ def draw_workflow(ax):
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     boxes = [
-        (0.03, 0.56, 0.16, 0.26, "Integrated\nscRNA-seq atlas\n176,299 cells", "#E8EEF7"),
-        (0.25, 0.56, 0.16, 0.26, "Epithelial\nreclustering\n24,481 cells", COL["red_soft"]),
-        (0.47, 0.56, 0.16, 0.26, "Malignant\nepithelial cells\n6,073 cells", COL["red_soft"]),
-        (0.69, 0.56, 0.16, 0.26, "BACH1\nexpression and\nregulon activity", COL["violet_soft"]),
-        (0.25, 0.16, 0.16, 0.22, "pySCENIC\nco-expression\nmotif pruning", COL["violet_soft"]),
-        (0.47, 0.16, 0.16, 0.22, "scATAC-seq\nBACH1 motif peaks\nTSS +/-10 kb", COL["teal_soft"]),
-        (0.69, 0.16, 0.16, 0.22, "Intersection\n65 candidates\nGO/KEGG", COL["green_soft"]),
+        (0.05, 0.60, 0.16, 0.22, "NSCLC\nscRNA atlas", "#E8EEF7"),
+        (0.28, 0.60, 0.16, 0.22, "Malignant\nepithelium", COL["red_soft"]),
+        (0.51, 0.60, 0.16, 0.22, "External\nBACH1 scores", COL["violet_soft"]),
+        (0.74, 0.60, 0.16, 0.22, "TCGA\nvalidation", COL["green_soft"]),
+        (0.39, 0.18, 0.18, 0.20, "Regulatory\nsensitivity", COL["violet_soft"]),
+        (0.66, 0.18, 0.18, 0.20, "ATAC and\nspatial context", COL["teal_soft"]),
     ]
     for x, y, w, h, text, fc in boxes:
         ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.012,rounding_size=0.018", fc=fc, ec="#555555", lw=0.7))
-        ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=7, linespacing=1.08)
-    for start, end in [((0.19, 0.69), (0.25, 0.69)), ((0.41, 0.69), (0.47, 0.69)), ((0.63, 0.69), (0.69, 0.69)), ((0.77, 0.56), (0.77, 0.38)), ((0.41, 0.27), (0.47, 0.27)), ((0.63, 0.27), (0.69, 0.27)), ((0.55, 0.38), (0.55, 0.56))]:
+        ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=7.2, linespacing=1.08)
+    for start, end in [
+        ((0.21, 0.71), (0.28, 0.71)),
+        ((0.44, 0.71), (0.51, 0.71)),
+        ((0.67, 0.71), (0.74, 0.71)),
+        ((0.36, 0.60), (0.45, 0.38)),
+        ((0.57, 0.28), (0.66, 0.28)),
+    ]:
         ax.add_patch(FancyArrowPatch(start, end, arrowstyle="-|>", mutation_scale=9, lw=0.8, color="#555555"))
-    ax.text(0.03, 0.95, "BACH1 analysis workflow", ha="left", va="top", fontsize=9.5, fontweight="bold")
-    ax.text(0.03, 0.04, "The story proceeds from cell-state context to pySCENIC inference, 10 kb scATAC motif support and intersection-gene function.", ha="left", va="bottom", fontsize=6.2, color=COL["grey"])
 
 
 def get_10kb_sets():
@@ -300,7 +306,7 @@ def plot_coexpression_heatmap(ax, a, coexpr):
     ax.set_yticks(range(z.shape[0]))
     ax.set_yticklabels(z.index, fontsize=5.5)
     ax.set_xlabel("BACH1 expression quantile")
-    ax.set_title("BACH1 co-expression genes", loc="left", fontsize=8)
+    ax.set_title("Co-expression", loc="left", fontsize=8)
     cb = plt.colorbar(im, ax=ax, fraction=0.035, pad=0.02)
     cb.set_label("row z-score", fontsize=5)
     cb.ax.tick_params(labelsize=5, width=0.4)
@@ -332,7 +338,7 @@ def plot_pyscenic_motif_pruning(ax, motif_df):
     ax.set_yticks(y)
     ax.set_yticklabels([wrap(x, 28) for x in df["label"]], fontsize=5.5)
     ax.set_xlabel("cisTarget NES")
-    ax.set_title("pySCENIC motif pruning", loc="left", fontsize=8)
+    ax.set_title("Motif pruning", loc="left", fontsize=8)
     ax.set_xlim(2.95, max(3.65, df["NES"].max() + 0.08))
     ax.grid(axis="x", color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
@@ -349,7 +355,7 @@ def plot_aucell_binarization(ax, bach1):
     ax.text(threshold, ax.get_ylim()[1] * 0.92, f"active cells\n{active:,}", ha="left", va="top", fontsize=5.7, color=COL["red"])
     ax.set_xlabel("BACH1 regulon AUCell")
     ax.set_ylabel("cells")
-    ax.set_title("pySCENIC AUCell binarization", loc="left", fontsize=8)
+    ax.set_title("AUCell", loc="left", fontsize=8)
     ax.grid(axis="y", color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
     pd.DataFrame({"BACH1_regulon_AUC": auc, "threshold": threshold, "active": auc >= threshold, "method": method}).to_csv(TABLE_DIR / "figure2_panel_c_pyscenic_aucell_binarization.csv", index=False)
@@ -369,12 +375,10 @@ def plot_auc_by_bach1_group(ax, bach1):
         ax.plot([i - 0.18, i + 0.18], [med, med], color=COL["dark"], lw=1.0)
         ax.plot([i, i], [q1, q3], color=COL["dark"], lw=1.0)
         ax.text(i, np.nanmax(v) + 0.002, f"n={len(v):,}", ha="center", va="bottom", fontsize=5.5)
-    p = mannwhitneyu(vals[0], vals[1], alternative="two-sided").pvalue
-    ax.text(0.5, 0.98, f"MWU P={p:.1e}", transform=ax.transAxes, ha="center", va="top", fontsize=5.7)
     ax.set_xticks([0, 1])
     ax.set_xticklabels(["BACH1-low", "BACH1-high"], rotation=15, ha="right")
     ax.set_ylabel("BACH1 regulon AUCell")
-    ax.set_title("Regulon activity by BACH1 expression", loc="left", fontsize=8)
+    ax.set_title("By BACH1 detection", loc="left", fontsize=8)
     ax.grid(axis="y", color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
 
@@ -399,7 +403,7 @@ def plot_pyscenic_target_bubble(ax, targets):
     ax.set_yticks(y)
     ax.set_yticklabels(df["gene"], fontsize=6)
     ax.set_xlabel("GRNBoost2 importance")
-    ax.set_title("pySCENIC BACH1 regulon targets", loc="left", fontsize=8)
+    ax.set_title("Recurrent targets", loc="left", fontsize=8)
     ax.grid(axis="x", color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
     cb = plt.colorbar(sc, ax=ax, fraction=0.04, pad=0.02)
@@ -414,18 +418,16 @@ def draw_scatac_workflow(ax, atac_summary):
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     boxes = [
-        (0.04, 0.32, 0.18, 0.38, f"scATAC-seq\n{int(atac_summary['n_atac_samples'])} samples\nsample-specific peaks", COL["teal_soft"]),
-        (0.29, 0.32, 0.18, 0.38, "JASPAR motif scan\nBACH1 and\nBach1::Mafk", COL["teal_soft"]),
-        (0.54, 0.32, 0.18, 0.38, "High-confidence\nmotif sites\nscore >=950", COL["teal_soft"]),
-        (0.79, 0.32, 0.18, 0.38, "Gene assignment\nTSS +/-10 kb\n3,830 genes", COL["green_soft"]),
+        (0.08, 0.45, 0.18, 0.26, "Tumour\nscATAC peaks", COL["teal_soft"]),
+        (0.32, 0.45, 0.18, 0.26, "BACH1-family\nmotifs", COL["violet_soft"]),
+        (0.56, 0.45, 0.18, 0.26, "TSS +/-10 kb\nlinkage", COL["amber_soft"]),
+        (0.80, 0.45, 0.18, 0.26, "Matched-\nbackground test", COL["green_soft"]),
     ]
     for x, y, w, h, text, fc in boxes:
         ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.012,rounding_size=0.018", fc=fc, ec="#555555", lw=0.7))
         ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=7, linespacing=1.08)
-    for start, end in [((0.22, 0.51), (0.29, 0.51)), ((0.47, 0.51), (0.54, 0.51)), ((0.72, 0.51), (0.79, 0.51))]:
+    for start, end in [((0.26, 0.58), (0.32, 0.58)), ((0.50, 0.58), (0.56, 0.58)), ((0.74, 0.58), (0.80, 0.58))]:
         ax.add_patch(FancyArrowPatch(start, end, arrowstyle="-|>", mutation_scale=9, lw=0.8, color="#555555"))
-    ax.text(0.04, 0.92, "scATAC motif-support workflow", ha="left", va="top", fontsize=9, fontweight="bold")
-    ax.text(0.04, 0.10, "Only the high-confidence TSS +/-10 kb criterion is used for downstream integration.", ha="left", va="bottom", fontsize=6.2, color=COL["grey"])
 
 
 def plot_atac_qc(ax, qc):
@@ -440,7 +442,7 @@ def plot_atac_qc(ax, qc):
     ax.set_xticks(x)
     ax.set_xticklabels(df["sample"], fontsize=6)
     ax.set_ylabel("cells / median peak\nfragments (x10^3)")
-    ax.set_title("scATAC sample QC", loc="left", fontsize=8)
+    ax.set_title("QC", loc="left", fontsize=8)
     ax.grid(axis="y", color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
     ax.legend(fontsize=5.4, loc="upper left")
@@ -459,7 +461,7 @@ def plot_atac_threshold(ax, threshold_df, selected_threshold=950):
         ax.text(sx + 3, sy + 8, f"used\nscore >= {int(sx)}", fontsize=5.7, ha="left", va="bottom")
     ax.set_xlabel("motif score threshold")
     ax.set_ylabel("motif-positive\npeaks (x10^3)")
-    ax.set_title("Motif score filter", loc="left", fontsize=8)
+    ax.set_title("Motif threshold", loc="left", fontsize=8)
     ax.grid(color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
 
@@ -474,7 +476,7 @@ def plot_motif_support_counts(ax, peaks):
     ax.set_yticks(y)
     ax.set_yticklabels(summary["motif_name"] + "\n" + summary["motif_model"], fontsize=6)
     ax.set_xlabel("high-conf motif-positive peaks")
-    ax.set_title("BACH1 motif models", loc="left", fontsize=8)
+    ax.set_title("Motif models", loc="left", fontsize=8)
     ax.grid(axis="x", color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
     for yi, v in zip(y, summary["n_peaks"]):
@@ -493,7 +495,7 @@ def plot_tss_distance(ax, links):
     ax.set_ylabel("peak-gene links")
     ax.set_xticks([0, 2000, 5000, 10000])
     ax.set_xticklabels(["0", "2", "5", "10"])
-    ax.set_title("10 kb peak-gene links", loc="left", fontsize=8)
+    ax.set_title("TSS distance", loc="left", fontsize=8)
     ax.legend(fontsize=5.5, loc="upper right")
     ax.grid(axis="y", color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
@@ -515,7 +517,7 @@ def plot_scatac_target_bubble(ax, links):
     ax.set_yticks(y)
     ax.set_yticklabels(df["gene"], fontsize=6)
     ax.set_xlabel("high-conf 10 kb motif links")
-    ax.set_title("scATAC-supported BACH1 target genes", loc="left", fontsize=8)
+    ax.set_title("Candidate genes", loc="left", fontsize=8)
     ax.grid(axis="x", color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
     cb = plt.colorbar(sc, ax=ax, fraction=0.04, pad=0.02)
@@ -546,7 +548,7 @@ def plot_peak_lollipop(ax, links):
     ax.set_yticklabels(target_genes[::-1], fontsize=6)
     ax.set_xlim(-10.5, 10.5)
     ax.set_xlabel("distance from TSS (kb)")
-    ax.set_title("Representative motif-bearing peak tracks", loc="left", fontsize=8)
+    ax.set_title("Example loci", loc="left", fontsize=8)
     ax.grid(axis="x", color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
     handles = [plt.Line2D([0], [0], marker="o", color="none", markerfacecolor=colors[k], markeredgecolor="white", label=k, markersize=5) for k in colors]
@@ -576,7 +578,7 @@ def plot_10kb_venn(ax, pys, atac):
     ax.text(0.24, 0.84, f"pySCENIC\n{counts['left_total']:,}", ha="center", va="center", fontsize=6.6)
     ax.text(0.76, 0.84, f"scATAC 10 kb\n{counts['right_total']:,}", ha="center", va="center", fontsize=6.6)
     ax.text(0.50, 0.14, "65 dual-evidence genes", ha="center", va="center", fontsize=6.2, color=COL["grey"])
-    ax.set_title("pySCENIC and scATAC 10 kb intersection", loc="left", fontsize=8)
+    ax.set_title("Evidence overlap", loc="left", fontsize=8)
 
 
 def plot_intersection_target_bubble(ax, targets, intersection):
@@ -600,7 +602,7 @@ def plot_intersection_target_bubble(ax, targets, intersection):
     ax.set_yticks(y)
     ax.set_yticklabels(df["gene"], fontsize=6)
     ax.set_xlabel("GRNBoost2 importance")
-    ax.set_title("Top dual-evidence genes", loc="left", fontsize=8)
+    ax.set_title("Candidate genes", loc="left", fontsize=8)
     ax.grid(axis="x", color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
     cb = plt.colorbar(sc, ax=ax, fraction=0.04, pad=0.02)
@@ -696,7 +698,7 @@ def plot_celltype_proportions(ax, atlas):
     ax.set_xticklabels(["Adjacent" if x == "adjacent_normal" else "Tumor" if x == "tumor" else x for x in props.index], fontsize=6)
     ax.set_ylim(0, 1)
     ax.set_ylabel("Cell fraction")
-    ax.set_title("Cell type composition by tissue status", loc="left", fontsize=8, pad=2)
+    ax.set_title("Cell fractions", loc="left", fontsize=8, pad=2)
     ax.grid(axis="y", color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
     for xi, tissue in enumerate(props.index):
@@ -719,7 +721,7 @@ def plot_celltype_proportions(ax, atlas):
 
 
 def get_marker_dotplot_source():
-    out = TABLE_DIR / "figure1_panel_d_celltype_marker_dotplot.csv"
+    out = TABLE_DIR / "figure1_panel_d_celltype_marker_dotplot_current.csv"
     if out.exists():
         return pd.read_csv(out)
     genes = [g for gs in MARKER_GENES.values() for g in gs]
@@ -782,7 +784,7 @@ def plot_marker_dotplot(ax):
     ax.set_yticklabels(groups[::-1], fontsize=5.8)
     ax.set_xlim(-0.6, len(genes) - 0.4)
     ax.set_ylim(-0.6, len(groups) - 0.4)
-    ax.set_title("Canonical markers defining major cell types", loc="left", fontsize=8, pad=2)
+    ax.set_title("Markers", loc="left", fontsize=8, pad=2)
     ax.grid(color=COL["light"], lw=0.45)
     ax.set_axisbelow(True)
     for pct, x in zip([25, 50, 75], [0.08, 0.18, 0.30]):
@@ -796,10 +798,11 @@ def plot_marker_dotplot(ax):
 
 
 def make_figure1():
-    atlas = read_umap_obs(ATLAS_H5AD, ["major_celltype_auto", "dataset", "tissue_status"], "figure1_panel_b_atlas_umap")
-    epi = read_umap_obs(EPI_H5AD, ["recommended_working_malignant", "cnv_consensus_call", "epi_subtype_auto", "tissue_status"], "figure1_panel_e_epithelial_umap")
-    bach1 = read_umap_obs(BACH1_H5AD, ["BACH1_expr", "BACH1_group", "BACH1_regulon_AUC", "sample", "epi_marker_only_label"], "figure1_panel_f_bach1_umap")
-    epi["malignant_call"] = np.where(true_mask(epi["recommended_working_malignant"]), "malignant", "non-malignant")
+    atlas = read_umap_obs(ATLAS_H5AD, ["major_celltype_auto", "dataset", "tissue_status"], "figure1_panel_b_atlas_umap_current")
+    epi = read_umap_obs(EPI_H5AD, ["recommended_working_malignant", "cnv_consensus_call", "epi_subtype_auto", "tissue_status"], "figure1_panel_e_epithelial_umap_current")
+    bach1 = read_umap_obs(PRIMARY_H5AD, ["BACH1_expr", "BACH1_group", "sample", "patient"], "figure1_panel_f_bach1_primary_umap_current")
+    primary_ids = set(bach1["cell_id"].astype(str))
+    epi["malignant_call"] = np.where(epi["cell_id"].astype(str).isin(primary_ids), "malignant", "non-malignant")
     atlas.to_csv(TABLE_DIR / "figure1_panel_b_atlas_umap_source.csv.gz", index=False)
     epi.to_csv(TABLE_DIR / "figure1_panel_e_epithelial_malignancy_umap_source.csv.gz", index=False)
     bach1.to_csv(TABLE_DIR / "figure1_panel_f_bach1_expression_umap_source.csv.gz", index=False)
@@ -818,7 +821,7 @@ def make_figure1():
     draw_workflow(ax_a)
     add_panel_label(ax_a, "a", x=0.0, y=1.01)
     ax_b = fig.add_subplot(gs[1, 0])
-    plot_umap_categorical(ax_b, atlas, "major_celltype_auto", CELLTYPE_COLORS, "Integrated NSCLC single-cell atlas", s=0.45, alpha=0.68)
+    plot_umap_categorical(ax_b, atlas, "major_celltype_auto", CELLTYPE_COLORS, "Cell types", s=0.45, alpha=0.68)
     add_panel_label(ax_b, "b")
     ax_b.text(0.01, 0.02, f"{len(atlas):,} cells", transform=ax_b.transAxes, fontsize=6, ha="left", va="bottom", bbox={"fc": "white", "ec": "none", "alpha": 0.75, "pad": 1.0})
     ax_c = fig.add_subplot(gs[1, 1])
@@ -828,14 +831,13 @@ def make_figure1():
     plot_marker_dotplot(ax_d)
     add_panel_label(ax_d, "d", x=-0.055)
     ax_e = fig.add_subplot(gs[2, :2])
-    plot_umap_categorical(ax_e, epi, "malignant_call", {"non-malignant": "#B8C0CC", "malignant": COL["red"]}, "Malignant epithelial compartment", s=1.15, alpha=0.75)
+    plot_umap_categorical(ax_e, epi, "malignant_call", {"non-malignant": "#B8C0CC", "malignant": COL["red"]}, "Malignant epithelium", s=1.15, alpha=0.75)
     add_panel_label(ax_e, "e", x=-0.04)
     ax_e.text(0.01, 0.02, f"{(epi['malignant_call']=='malignant').sum():,} malignant epithelial cells", transform=ax_e.transAxes, fontsize=6, ha="left", va="bottom", bbox={"fc": "white", "ec": "none", "alpha": 0.75, "pad": 1.0})
     ax_f = fig.add_subplot(gs[2, 2:])
-    plot_umap_continuous(ax_f, bach1, "BACH1_expr", "BACH1 expression in malignant epithelial cells", cmap="magma", s=2.8)
+    plot_umap_continuous(ax_f, bach1, "BACH1_expr", "BACH1 expression", cmap="magma", s=2.8)
     add_panel_label(ax_f, "f", x=-0.04)
-    fig.suptitle("Cellular context for BACH1 analysis in malignant epithelial NSCLC cells", x=0.02, y=0.995, ha="left", fontsize=11, fontweight="bold")
-    fig.subplots_adjust(top=0.93)
+    fig.subplots_adjust(top=0.95)
     save_all(fig, "figure1_cellular_context")
 
 
@@ -848,28 +850,28 @@ def make_figure2():
     coexpr.head(80).to_csv(TABLE_DIR / "figure2_bach1_top_coexpression_genes.csv", index=False)
     motifs.to_csv(TABLE_DIR / "figure2_panel_d_pyscenic_motif_pruning.csv", index=False)
 
-    fig = plt.figure(figsize=(13.4, 8.2))
-    gs = GridSpec(2, 4, figure=fig, height_ratios=[1.03, 1.12], width_ratios=[1.18, 0.92, 1.02, 1.18], hspace=0.42, wspace=0.50)
-    ax_a = fig.add_subplot(gs[:, 0])
+    fig = plt.figure(figsize=(12.2, 7.5))
+    gs = GridSpec(2, 3, figure=fig, height_ratios=[1.0, 1.06], width_ratios=[1.08, 1.0, 1.18], hspace=0.46, wspace=0.50)
+    ax_a = fig.add_subplot(gs[0, 0])
     plot_coexpression_heatmap(ax_a, a, coexpr)
     add_panel_label(ax_a, "a", x=-0.05)
     ax_b = fig.add_subplot(gs[0, 1])
-    plot_umap_continuous(ax_b, bach1, "BACH1_regulon_AUC", "BACH1 regulon AUCell UMAP", cmap="magma", s=2.7)
+    plot_umap_continuous(ax_b, bach1, "BACH1_regulon_AUC", None, cmap="magma", s=2.7)
     add_panel_label(ax_b, "b")
     ax_c = fig.add_subplot(gs[0, 2])
     plot_aucell_binarization(ax_c, bach1)
+    ax_c.set_title(None)
     add_panel_label(ax_c, "c")
-    ax_d = fig.add_subplot(gs[1, 1])
+    ax_d = fig.add_subplot(gs[1, 0])
     plot_auc_by_bach1_group(ax_d, bach1)
     add_panel_label(ax_d, "d")
-    ax_e = fig.add_subplot(gs[0, 3])
+    ax_e = fig.add_subplot(gs[1, 1])
     plot_pyscenic_motif_pruning(ax_e, motifs)
     add_panel_label(ax_e, "e")
-    ax_f = fig.add_subplot(gs[1, 2:])
+    ax_f = fig.add_subplot(gs[1, 2])
     plot_pyscenic_target_bubble(ax_f, targets)
     add_panel_label(ax_f, "f", x=-0.05)
-    fig.suptitle("BACH1 co-expression and pySCENIC regulon inference", x=0.02, y=0.995, ha="left", fontsize=11, fontweight="bold")
-    fig.subplots_adjust(top=0.93)
+    fig.subplots_adjust(top=0.95)
     save_all(fig, "figure2_pyscenic_regulon")
     a.file.close() if getattr(a, "isbacked", False) else None
 
@@ -907,8 +909,7 @@ def make_figure3():
     ax_g = fig.add_subplot(gs[2, 2])
     plot_peak_lollipop(ax_g, links)
     add_panel_label(ax_g, "g")
-    fig.suptitle("scATAC BACH1 motif support defines proximal candidate target genes", x=0.02, y=0.995, ha="left", fontsize=11, fontweight="bold")
-    fig.subplots_adjust(top=0.93)
+    fig.subplots_adjust(top=0.95)
     save_all(fig, "figure3_scatac_motif_support")
 
 
@@ -931,23 +932,12 @@ def make_figure4():
     plot_intersection_target_bubble(ax_b, targets, intersection)
     add_panel_label(ax_b, "b", x=-0.05)
     ax_c = fig.add_subplot(gs[1, 0])
-    plot_terms(ax_c, intersection_10kb, "GO/KEGG of 65 dual-evidence genes", max_terms=6, color=COL["green"], empty_note="Only two significant 10 kb-intersection terms")
+    plot_terms(ax_c, intersection_10kb, "GO/KEGG", max_terms=6, color=COL["green"], empty_note="Only two significant 10 kb-intersection terms")
     add_panel_label(ax_c, "c")
     ax_d = fig.add_subplot(gs[1, 1])
-    plot_terms(ax_d, atac_terms, "Functional context of the 10 kb motif program", max_terms=8, color=COL["red"])
+    plot_terms(ax_d, atac_terms, "Motif-context terms", max_terms=8, color=COL["red"])
     add_panel_label(ax_d, "d", x=-0.05)
-    ax_d.text(
-        0.98,
-        1.07,
-        "Strict intersection: 65 genes\nChromatin context: inflammatory/cytokine and vesicle-lysosome programs",
-        transform=ax_d.transAxes,
-        ha="right",
-        va="bottom",
-        fontsize=6,
-        bbox={"boxstyle": "round,pad=0.25", "fc": COL["amber_soft"], "ec": "#BCA47E", "lw": 0.5},
-    )
-    fig.suptitle("Dual-evidence BACH1 targets and functional interpretation", x=0.02, y=0.995, ha="left", fontsize=11, fontweight="bold")
-    fig.subplots_adjust(top=0.92)
+    fig.subplots_adjust(top=0.95)
     save_all(fig, "figure4_integration_go_kegg")
 
 

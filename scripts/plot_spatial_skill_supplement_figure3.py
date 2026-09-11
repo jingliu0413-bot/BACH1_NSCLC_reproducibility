@@ -7,7 +7,6 @@ matplotlib.use("Agg")
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
-from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
 import numpy as np
 import pandas as pd
 
@@ -38,6 +37,7 @@ TABLE = SUP / "tables"
 H5AD = SUP / "h5ad_by_sample"
 FIG = SUP / "figures"
 SRC = SUP / "source_data"
+REV = BASE / "revision_statistics"
 for path in [FIG, SRC]:
     path.mkdir(parents=True, exist_ok=True)
 
@@ -88,53 +88,30 @@ def get_image_coords(adata):
     return image, adata.obsm["spatial"] * scale
 
 
-def draw_workflow(ax):
-    ax.axis("off")
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.text(0.01, 0.93, "Spatial skill audit and completion", fontsize=8.5, fontweight="bold", ha="left", va="top")
-    boxes = [
-        (0.03, 0.60, 0.22, 0.20, "preprocessing\nQC flags", COL["soft_blue"]),
-        (0.29, 0.60, 0.22, 0.20, "neighbors\nVisium grid", COL["soft_teal"]),
-        (0.55, 0.60, 0.22, 0.20, "statistics\nMoran's I", "#F0E0D0"),
-        (0.16, 0.25, 0.25, 0.20, "domains\ncombined graph", "#ECE7F2"),
-        (0.47, 0.25, 0.30, 0.20, "deconvolution\nscRNA signature proxy", COL["soft_red"]),
-    ]
-    for x, y, w, h, text, fc in boxes:
-        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.012,rounding_size=0.018", fc=fc, ec="#606060", lw=0.7))
-        ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=6.5, linespacing=1.05)
-    for start, end in [((0.25, 0.70), (0.29, 0.70)), ((0.51, 0.70), (0.55, 0.70)), ((0.66, 0.60), (0.38, 0.45)), ((0.66, 0.60), (0.62, 0.45))]:
-        ax.add_patch(FancyArrowPatch(start, end, arrowstyle="-|>", mutation_scale=8, lw=0.7, color="#606060"))
-    ax.text(
-        0.03,
-        0.03,
-        "40 Visium sections; 88,520 spots.\nFull cell2location was not trained here;\nproxy uses scRNA-derived marker signatures.",
-        fontsize=5.7,
-        color=COL["grey"],
-        ha="left",
-        va="bottom",
-    )
-
-
 def plot_qc_graph(ax, qc):
+    ax.axis("off")
     order = ["Adjacent", "Tumor", "Healthy"]
     x = np.arange(len(order))
     vals = [qc.loc[qc["tissue_group"].eq(g), "qc_pass_fraction"].mean() for g in order]
     deg = [qc.loc[qc["tissue_group"].eq(g), "spatial_graph_mean_degree"].mean() for g in order]
-    ax.bar(x - 0.18, vals, width=0.36, color=[GROUP_COL[g] for g in order], edgecolor="white", lw=0.7)
-    ax.set_ylabel("QC pass fraction")
-    ax.set_ylim(0, 1.05)
-    ax.set_xticks(x)
-    ax.set_xticklabels(order)
-    ax2 = ax.twinx()
-    ax2.plot(x + 0.18, deg, color=COL["dark"], marker="o", ms=3.5, lw=1.1)
-    ax2.set_ylim(0, 6.2)
-    ax2.set_ylabel("mean spatial degree")
-    ax.set_title("Preprocessing and neighbor graph QC", loc="left", fontsize=8)
-    ax.grid(axis="y", color=COL["light"], lw=0.5)
-    ax.set_axisbelow(True)
+    ax_top = ax.inset_axes([0.02, 0.54, 0.96, 0.40])
+    ax_bottom = ax.inset_axes([0.02, 0.05, 0.96, 0.38])
+    ax_top.bar(x, vals, width=0.54, color=[GROUP_COL[g] for g in order], edgecolor="white", lw=0.7)
+    ax_top.set_ylabel("QC pass")
+    ax_top.set_ylim(0, 1.05)
+    ax_top.set_xticks([])
+    ax_top.set_title("QC", loc="left", fontsize=8)
+    ax_top.grid(axis="y", color=COL["light"], lw=0.5)
+    ax_top.set_axisbelow(True)
+    ax_bottom.plot(x, deg, color=COL["dark"], marker="o", ms=3.5, lw=1.1)
+    ax_bottom.set_ylim(0, 6.2)
+    ax_bottom.set_ylabel("mean degree")
+    ax_bottom.set_xticks(x)
+    ax_bottom.set_xticklabels(order, fontsize=5.8)
+    ax_bottom.grid(axis="y", color=COL["light"], lw=0.5)
+    ax_bottom.set_axisbelow(True)
     for xi, val in zip(x, vals):
-        ax.text(xi - 0.18, val + 0.025, f"{val:.2f}", ha="center", va="bottom", fontsize=5.5)
+        ax_top.text(xi, val + 0.025, f"{val:.2f}", ha="center", va="bottom", fontsize=5.2)
 
 
 def plot_moran(ax, moran, qc):
@@ -164,7 +141,7 @@ def plot_moran(ax, moran, qc):
     ax.set_xticks(range(len(features)))
     ax.set_xticklabels(labels)
     ax.set_ylabel("Moran's I")
-    ax.set_title("Spatial autocorrelation of BACH1/NOD features", loc="left", fontsize=8)
+    ax.set_title("Moran's I", loc="left", fontsize=8)
     ax.legend(fontsize=5.8, loc="upper left")
     ax.grid(axis="y", color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
@@ -184,7 +161,7 @@ def plot_domain_map(ax, adata, sample):
     ax.set_yticks([])
     for sp in ax.spines.values():
         sp.set_visible(False)
-    ax.set_title(f"{sample} spatial domains", loc="left", fontsize=8)
+    ax.set_title(f"{sample} domains", loc="left", fontsize=8)
     ax.legend(fontsize=5.2, loc="lower left", ncol=2, handletextpad=0.2, columnspacing=0.7)
 
 
@@ -192,11 +169,11 @@ def plot_domain_heatmap(ax, domain):
     sub = domain[domain["sample"].eq("P10_T1")].copy()
     sub = sub.sort_values("cohigh_fraction", ascending=False)
     metrics = [
-        ("BACH1+ frac", "BACH1_detected_fraction"),
+        ("BACH1-detected", "BACH1_detected_fraction"),
         ("NOD score", "NOD_like_score_mean"),
-        ("co-high frac", "cohigh_fraction"),
-        ("Epithelial sig", "Epithelial_signature_mean"),
-        ("Myeloid sig", "Myeloid_signature_mean"),
+        ("overlap frac", "cohigh_fraction"),
+        ("Epithelial proxy", "Epithelial_signature_mean"),
+        ("Myeloid proxy", "Myeloid_signature_mean"),
     ]
     mat = sub[[m[1] for m in metrics]].to_numpy(float)
     z = (mat - np.nanmean(mat, axis=0)) / np.nanstd(mat, axis=0)
@@ -205,7 +182,7 @@ def plot_domain_heatmap(ax, domain):
     ax.set_yticklabels(sub["spatial_domain"])
     ax.set_xticks(np.arange(len(metrics)))
     ax.set_xticklabels([m[0] for m in metrics], rotation=35, ha="right")
-    ax.set_title("P10_T1 domain-level BACH1/NOD and signatures", loc="left", fontsize=8)
+    ax.set_title("Domain scores", loc="left", fontsize=8)
     for i in range(z.shape[0]):
         for j in range(z.shape[1]):
             ax.text(j, i, f"{mat[i, j]:.2f}", ha="center", va="center", fontsize=5.2, color="white" if abs(z[i, j]) > 1 else COL["dark"])
@@ -216,20 +193,30 @@ def plot_domain_heatmap(ax, domain):
 
 
 def plot_signature_enrichment(ax, enrich):
-    sub = enrich[enrich["tissue_group"].eq("Tumor")].copy()
-    sub = sub.sort_values("delta")
-    colors = [COL["tumor"] if v > 0 else COL["adjacent"] for v in sub["delta"]]
-    ax.barh(np.arange(len(sub)), sub["delta"], color=colors, edgecolor="white", lw=0.6)
+    sub = enrich.copy().sort_values("tumor_median_delta_cohigh_minus_non")
+    val_col = "tumor_median_delta_cohigh_minus_non"
+    colors = [COL["tumor"] if v > 0 else COL["adjacent"] for v in sub[val_col]]
+    ax.barh(np.arange(len(sub)), sub[val_col], color=colors, edgecolor="white", lw=0.6)
     ax.axvline(0, color=COL["grey"], ls="--", lw=0.8)
     ax.set_yticks(np.arange(len(sub)))
     ax.set_yticklabels(sub["signature"], fontsize=6)
-    ax.set_xlabel("signature fraction delta\nco-high - non-co-high")
-    ax.set_title("Tumor co-high spots: signature proxy enrichment", loc="left", fontsize=8)
+    ax.set_xlabel("patient median signature proxy delta\nhigh-overlap - other spots")
+    ax.set_title("Signature proxies", loc="left", fontsize=8)
     ax.grid(axis="x", color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
-    ax.set_xlim(-0.034, 0.019)
+    span = max(abs(sub[val_col].min()), abs(sub[val_col].max()), 0.01)
+    ax.set_xlim(-span * 1.35, span * 1.35)
     for yi, row in enumerate(sub.itertuples(index=False)):
-        ax.text(0.012, yi, f"p={row.mannwhitney_p:.1e}", va="center", ha="left", fontsize=5.0, color=COL["grey"])
+        xpos = span * 0.30
+        ax.text(
+            xpos,
+            yi,
+            f"p={row.tumor_one_sample_wilcoxon_p:.3g}; H={row.tumor_one_sample_holm_p:.3g}",
+            va="center",
+            ha="left",
+            fontsize=4.9,
+            color=COL["grey"],
+        )
 
 
 def write_legend(qc, moran, paired, enrich):
@@ -241,20 +228,25 @@ def write_legend(qc, moran, paired, enrich):
         moran_with_group["tissue_group"].eq("Adjacent") & moran_with_group["feature"].eq("NOD_like_score_scanpy")
     ]["moran_i"].mean()
     with open(SUP / "spatial_skill_supplement_figure3_legend.md", "w", encoding="utf-8") as fh:
-        fh.write("# Figure 3 spatial skill supplement\n\n")
+        fh.write("# Figure 3 spatial analysis supplement\n\n")
         fh.write("## Core conclusion\n\n")
         fh.write(
-            "The spatial-transcriptomics skill audit confirms that the E-MTAB-13530 Visium analysis includes preprocessing QC, Squidpy spatial neighbor graphs, Moran's I spatial statistics, expression-spatial domain detection, and a fast scRNA-marker signature deconvolution proxy. "
-            "NOD-like receptor pathway score is spatially autocorrelated in both tumor and adjacent sections, whereas BACH1 itself is sparse with weak global Moran's I. Tumor BACH1/NOD co-high spots show modest enrichment for Myeloid and Epithelial signature proxies.\n\n"
+            "The spatial-transcriptomics supplement summarizes section-level QC, Moran's I statistics, a representative domain map, domain-level BACH1/NOD metrics and marker-signature proxy tests. "
+            "NOD-like receptor pathway score is spatially autocorrelated in both tumor and adjacent sections, whereas BACH1 itself is sparse with weak global Moran's I. Patient-level signature proxy tests should be interpreted as exploratory marker-signature summaries rather than cell-type proportion estimates.\n\n"
         )
         fh.write("## Key numbers\n\n")
         fh.write(f"- Mean tumor QC pass fraction: {qc.loc[qc.tissue_group.eq('Tumor'), 'qc_pass_fraction'].mean():.3f}\n")
         fh.write(f"- Mean adjacent QC pass fraction: {qc.loc[qc.tissue_group.eq('Adjacent'), 'qc_pass_fraction'].mean():.3f}\n")
         fh.write(f"- Mean tumor NOD score Moran's I: {tumor_nod_moran:.3f}\n")
         fh.write(f"- Mean adjacent NOD score Moran's I: {adjacent_nod_moran:.3f}\n")
-        top = enrich[enrich.tissue_group.eq("Tumor")].sort_values("delta", ascending=False).head(2)
+        top = enrich.sort_values("tumor_median_delta_cohigh_minus_non", ascending=False).head(2)
         for row in top.itertuples(index=False):
-            fh.write(f"- Tumor co-high signature delta, {row.signature}: {row.delta:.4f}, Mann-Whitney p={row.mannwhitney_p:.3g}\n")
+            fh.write(
+                f"- Tumor high-overlap signature proxy delta, {row.signature}: "
+                f"{row.tumor_median_delta_cohigh_minus_non:.4f}, "
+                f"patient-level nominal p={row.tumor_one_sample_wilcoxon_p:.3g}, "
+                f"Holm p={row.tumor_one_sample_holm_p:.3g}\n"
+            )
         fh.write("\nFull source data are saved in `spatial_skill_supplement/source_data` and `spatial_skill_supplement/tables`.\n")
 
 
@@ -263,44 +255,34 @@ def main():
     moran = pd.read_csv(TABLE / "spatial_skill_moran_statistics.csv")
     paired = pd.read_csv(TABLE / "spatial_skill_paired_tumor_adjacent_supplement_stats.csv")
     domain = pd.read_csv(TABLE / "spatial_skill_domain_summary.csv")
-    enrich = pd.read_csv(TABLE / "spatial_skill_cohigh_signature_enrichment.csv")
+    enrich_path = REV / "spatial_cohigh_signature_patient_tests.csv"
+    enrich = pd.read_csv(enrich_path if enrich_path.exists() else TABLE / "spatial_skill_cohigh_signature_enrichment.csv")
     adata = ad.read_h5ad(H5AD / "P10_T1_skill_supplement.h5ad")
 
     qc.to_csv(SRC / "figure3_qc_graph_summary.csv", index=False)
     moran.to_csv(SRC / "figure3_moran_statistics.csv", index=False)
     paired.to_csv(SRC / "figure3_paired_supplement_stats.csv", index=False)
     domain[domain["sample"].eq("P10_T1")].to_csv(SRC / "figure3_P10_T1_domain_summary.csv", index=False)
-    enrich.to_csv(SRC / "figure3_cohigh_signature_enrichment.csv", index=False)
+    enrich.to_csv(SRC / "figure3_patient_level_signature_proxy_tests.csv", index=False)
 
-    fig = plt.figure(figsize=(12.2, 7.4))
-    gs = GridSpec(2, 3, figure=fig, width_ratios=[1.0, 1.05, 1.05], height_ratios=[0.9, 1.2], hspace=0.45, wspace=0.38)
+    fig = plt.figure(figsize=(12.2, 7.0))
+    gs = GridSpec(2, 3, figure=fig, width_ratios=[1.0, 1.05, 1.05], height_ratios=[0.95, 1.18], hspace=0.45, wspace=0.38)
     ax_a = fig.add_subplot(gs[0, 0])
-    draw_workflow(ax_a)
+    plot_qc_graph(ax_a, qc)
     add_panel_label(ax_a, "a")
     ax_b = fig.add_subplot(gs[0, 1])
-    plot_qc_graph(ax_b, qc)
+    plot_moran(ax_b, moran, qc)
     add_panel_label(ax_b, "b")
     ax_c = fig.add_subplot(gs[0, 2])
-    plot_moran(ax_c, moran, qc)
+    plot_domain_map(ax_c, adata, "P10_T1")
     add_panel_label(ax_c, "c")
-    ax_d = fig.add_subplot(gs[1, 0])
-    plot_domain_map(ax_d, adata, "P10_T1")
+    ax_d = fig.add_subplot(gs[1, :2])
+    plot_domain_heatmap(ax_d, domain)
     add_panel_label(ax_d, "d")
-    ax_e = fig.add_subplot(gs[1, 1])
-    plot_domain_heatmap(ax_e, domain)
+    ax_e = fig.add_subplot(gs[1, 2])
+    plot_signature_enrichment(ax_e, enrich)
     add_panel_label(ax_e, "e")
-    ax_f = fig.add_subplot(gs[1, 2])
-    plot_signature_enrichment(ax_f, enrich)
-    add_panel_label(ax_f, "f")
-    fig.suptitle(
-        "Spatial-transcriptomics skill audit adds domain and signature context to BACH1/NOD co-localization",
-        x=0.02,
-        y=0.995,
-        ha="left",
-        fontsize=11,
-        fontweight="bold",
-    )
-    fig.subplots_adjust(top=0.90, left=0.06, right=0.98, bottom=0.08)
+    fig.subplots_adjust(top=0.95, left=0.06, right=0.98, bottom=0.08)
     save_all(fig, "figure3_spatial_skill_supplement_domains_signatures")
     write_legend(qc, moran, paired, enrich)
     print(f"Wrote figure 3 to {FIG}")

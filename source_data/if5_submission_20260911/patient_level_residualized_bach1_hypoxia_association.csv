@@ -1,0 +1,3 @@
+analysis,n_patients,ols_standardized_beta,ols_hc3_ci_low,ols_hc3_ci_high,ols_hc3_p,residual_spearman_rho,residual_spearman_p,model
+all_patients,16,0.04253244985109811,-2.376569955782218,2.4616348554844145,0.972510404367746,0.13529411764705881,0.6173674089706418,hypoxia_no_overlap_z ~ dorothea_no_overlap_z + dataset + median_log_total_counts + median_detected_genes + median_pct_mt + epithelial_state_composition_PC1_PC2
+patients_with_at_least_20_cells,14,-0.0367947296620726,-1.0363955943700913,0.962806135045946,0.9424864027676785,0.01098901098901099,0.970258390096969,hypoxia_no_overlap_z ~ dorothea_no_overlap_z + dataset + median_log_total_counts + median_detected_genes + median_pct_mt + epithelial_state_composition_PC1_PC2

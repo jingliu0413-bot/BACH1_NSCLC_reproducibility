@@ -1,0 +1,4 @@
+cohort,n_total_primary_tumour_patients,n_stage_unknown_or_missing,n_pack_years_missing,n_absolute_purity_missing,n_model_stage_unknown_retained_smoking_complete_case,n_model_strict_known_stage_and_smoking_complete_case,n_model_with_absolute_purity_complete_case
+LUAD,515,8,165,345,350,347,115
+LUSC,502,5,78,502,424,421,0
+combined,1017,13,243,847,774,768,115

@@ -20,6 +20,7 @@ ROOT = PROJECT_ROOT
 SPATIAL = ROOT / "out" / "emtab13530_spatial_bach1_nod"
 H5AD = SPATIAL / "h5ad_by_sample"
 TABLE = SPATIAL / "tables"
+REV = SPATIAL / "revision_statistics"
 OUT = ROOT / "out" / "nature_story_4figures_10kb"
 FIG = OUT / "figures"
 FINAL = FIG / "publication_figures"
@@ -145,7 +146,7 @@ def add_spatial_annotation(ax, row):
     ax.text(
         0.02,
         0.04,
-        f"BACH1+ {row.BACH1_detected_fraction:.1%}; co-high J={row.high_high_jaccard:.2f}",
+        f"BACH1-detected {row.BACH1_detected_fraction:.1%}; overlap J={row.high_high_jaccard:.2f}",
         transform=ax.transAxes,
         ha="left",
         va="bottom",
@@ -158,20 +159,25 @@ def add_spatial_annotation(ax, row):
 def paired_metric(ax, patient_summary, stats_table, metric, ylabel, title):
     wide = patient_summary.pivot(index="patient_id", columns="tissue_group", values=metric).dropna(subset=["Adjacent", "Tumor"])
     x = np.array([0, 1])
-    for _, row in wide.iterrows():
+    for patient_id, row in wide.iterrows():
         ax.plot(x, [row["Adjacent"], row["Tumor"]], color="#B8B8B8", lw=0.75, zorder=1)
         ax.scatter(0, row["Adjacent"], s=20, color=COL["adjacent"], edgecolor="white", linewidth=0.45, zorder=3)
         ax.scatter(1, row["Tumor"], s=20, color=COL["tumor"], edgecolor="white", linewidth=0.45, zorder=3)
+        ax.text(1.035, row["Tumor"], patient_id, fontsize=4.8, color=COL["grey"], va="center", ha="left")
     ax.plot(x, [wide["Adjacent"].median(), wide["Tumor"].median()], color=COL["dark"], lw=1.5, zorder=4)
     ax.set_xticks(x)
     ax.set_xticklabels(["Adjacent", "Tumor"])
+    ax.set_xlim(-0.18, 1.23)
     ax.set_ylabel(ylabel)
     ax.set_title(title, loc="left", fontsize=8)
     stat = stats_table.loc[stats_table["metric"].eq(metric)].iloc[0]
+    p_label = f"p={stat.wilcoxon_p:.3g}"
+    if "holm_p" in stat.index and np.isfinite(stat.holm_p):
+        p_label += f"; Holm={stat.holm_p:.3g}"
     ax.text(
         0.5,
         0.98,
-        f"n={int(stat.n_pairs)} pairs; p={stat.wilcoxon_p:.3g}\nmedian delta={stat.median_delta_tumor_minus_adjacent:.3g}",
+        f"n={int(stat.n_pairs)} pairs; {p_label}\nmedian delta={stat.median_delta_tumor_minus_adjacent:.3g}",
         transform=ax.transAxes,
         ha="center",
         va="top",
@@ -182,9 +188,9 @@ def paired_metric(ax, patient_summary, stats_table, metric, ylabel, title):
     ax.set_axisbelow(True)
 
 
-def plot_section_correlation(ax, sample_metrics):
+def plot_patient_correlation(ax, patient_summary):
     for group in ["Adjacent", "Tumor", "Healthy"]:
-        sub = sample_metrics[sample_metrics["tissue_group"].eq(group)]
+        sub = patient_summary[patient_summary["tissue_group"].eq(group)]
         if sub.empty:
             continue
         ax.scatter(
@@ -197,11 +203,21 @@ def plot_section_correlation(ax, sample_metrics):
             alpha=0.9,
             label=group,
         )
-    rho, p = stats.spearmanr(sample_metrics["BACH1_detected_fraction"], sample_metrics["NOD_like_score_mean"])
-    ax.text(0.04, 0.96, f"Spearman rho={rho:.2f}\np={p:.3g}", transform=ax.transAxes, ha="left", va="top", fontsize=5.8, color=COL["grey"])
-    ax.set_xlabel("BACH1+ spot fraction")
+        for row in sub.itertuples(index=False):
+            ax.text(
+                row.BACH1_detected_fraction,
+                row.NOD_like_score_mean,
+                row.patient_id,
+                fontsize=4.7,
+                color=COL["grey"],
+                ha="left",
+                va="bottom",
+            )
+    rho, p = stats.spearmanr(patient_summary["BACH1_detected_fraction"], patient_summary["NOD_like_score_mean"])
+    ax.text(0.04, 0.96, f"patient-tissue rho={rho:.2f}\nnominal p={p:.3g}", transform=ax.transAxes, ha="left", va="top", fontsize=5.8, color=COL["grey"])
+    ax.set_xlabel("BACH1-detected spot fraction")
     ax.set_ylabel("mean NOD-like score")
-    ax.set_title("Section-level BACH1/NOD relationship", loc="left", fontsize=8)
+    ax.set_title("Patient association", loc="left", fontsize=8)
     ax.grid(color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
     ax.legend(fontsize=5.6, loc="lower right")
@@ -219,11 +235,11 @@ def bootstrap_ci(values, n=4000, seed=11):
 
 def plot_effect_summary(ax, patient_summary, stats_table):
     metrics = [
-        ("BACH1+ fraction", "BACH1_detected_fraction"),
+        ("BACH1-detected fraction", "BACH1_detected_fraction"),
         ("NOD score", "NOD_like_score_mean"),
         ("same-spot rho", "BACH1_NOD_spearman_rho"),
         ("neighbor rho", "BACH1_to_neighbor_NOD_spearman_rho"),
-        ("co-high Jaccard", "high_high_jaccard"),
+        ("overlap Jaccard", "high_high_jaccard"),
     ]
     rows = []
     for label, metric in metrics:
@@ -239,6 +255,7 @@ def plot_effect_summary(ax, patient_summary, stats_table):
                 "ci_low": float(lo),
                 "ci_high": float(hi),
                 "wilcoxon_p": float(stat.wilcoxon_p),
+                "holm_p": float(stat.holm_p) if "holm_p" in stat.index and np.isfinite(stat.holm_p) else np.nan,
                 "n_pairs": int(len(delta)),
             }
         )
@@ -251,21 +268,67 @@ def plot_effect_summary(ax, patient_summary, stats_table):
         color = COL["tumor"] if row.median_delta >= 0 else COL["adjacent"]
         ax.plot([row.ci_low, row.ci_high], [yi, yi], color=color, lw=1.1)
         ax.scatter(row.median_delta, yi, s=24, color=color, edgecolor="white", linewidth=0.5, zorder=3)
-        ax.text(xmax - 0.001, yi, f"p={row.wilcoxon_p:.3g}", ha="right", va="center", fontsize=5.4, color=COL["grey"])
+        p_label = f"p={row.wilcoxon_p:.3g}"
+        if np.isfinite(row.holm_p):
+            p_label += f"; H={row.holm_p:.3g}"
+        ax.text(xmax - 0.001, yi, p_label, ha="right", va="center", fontsize=5.0, color=COL["grey"])
     ax.axvline(0, color=COL["grey"], lw=0.8, ls="--")
     ax.set_xlim(xmin, xmax)
     ax.set_yticks(y)
     ax.set_yticklabels(df["label"], fontsize=6)
     ax.set_xlabel("paired median delta\nTumor - Adjacent")
-    ax.set_title("Patient-paired spatial effects", loc="left", fontsize=8)
+    ax.set_title("Paired effects", loc="left", fontsize=8)
     ax.grid(axis="x", color=COL["light"], lw=0.5)
     ax.set_axisbelow(True)
+
+
+def add_qc_adjustment_note(ax, qc_model):
+    if qc_model is None or qc_model.empty:
+        return
+    term = qc_model[qc_model["term"].eq("tumor_vs_adjacent")]
+    if term.empty:
+        return
+    row = term.iloc[0]
+    ax.text(
+        0.02,
+        0.05,
+        f"QC-adjusted OR={row.odds_ratio:.2f}\ncluster p={row.p_value:.3g}",
+        transform=ax.transAxes,
+        ha="left",
+        va="bottom",
+        fontsize=5.2,
+        color=COL["grey"],
+        bbox={"fc": "white", "ec": "none", "alpha": 0.78, "pad": 1.0},
+    )
+
+
+def add_jaccard_permutation_note(ax, jaccard_tests):
+    if jaccard_tests is None or jaccard_tests.empty:
+        return
+    ratio = jaccard_tests[jaccard_tests["metric"].eq("observed_expected_ratio")]
+    if ratio.empty:
+        return
+    row = ratio.iloc[0]
+    ax.text(
+        0.02,
+        0.05,
+        f"O/E ratio delta={row.median_delta_tumor_minus_adjacent:.2f}\nnominal p={row.wilcoxon_p:.3g}; Holm={row.holm_p:.3g}",
+        transform=ax.transAxes,
+        ha="left",
+        va="bottom",
+        fontsize=5.2,
+        color=COL["grey"],
+        bbox={"fc": "white", "ec": "none", "alpha": 0.78, "pad": 1.0},
+    )
 
 
 def main():
     sample_metrics = pd.read_csv(TABLE / "E-MTAB-13530_bach1_nod_sample_metrics.csv")
     patient_summary = pd.read_csv(TABLE / "E-MTAB-13530_patient_tumor_adjacent_summary.csv")
-    stats_table = pd.read_csv(TABLE / "E-MTAB-13530_tumor_vs_adjacent_paired_wilcoxon.csv")
+    stats_path = REV / "E-MTAB-13530_tumor_vs_adjacent_paired_wilcoxon_holm.csv"
+    stats_table = pd.read_csv(stats_path if stats_path.exists() else TABLE / "E-MTAB-13530_tumor_vs_adjacent_paired_wilcoxon.csv")
+    qc_model = pd.read_csv(REV / "spatial_bach1_detection_qc_adjusted_glm.csv") if (REV / "spatial_bach1_detection_qc_adjusted_glm.csv").exists() else pd.DataFrame()
+    jaccard_tests = pd.read_csv(REV / "spatial_jaccard_patient_paired_tests.csv") if (REV / "spatial_jaccard_patient_paired_tests.csv").exists() else pd.DataFrame()
 
     tumor_sample = "P17_T1"
     adjacent_sample = "P17_B1"
@@ -279,6 +342,10 @@ def main():
     sample_metrics.to_csv(SRC / "figure5_panel_d_sample_metrics.csv", index=False)
     patient_summary.to_csv(SRC / "figure5_panel_d_e_patient_paired_metrics.csv", index=False)
     stats_table.to_csv(SRC / "figure5_panel_d_e_paired_wilcoxon_statistics.csv", index=False)
+    if not qc_model.empty:
+        qc_model.to_csv(SRC / "figure5_qc_adjusted_bach1_detection_glm.csv", index=False)
+    if not jaccard_tests.empty:
+        jaccard_tests.to_csv(SRC / "figure5_jaccard_permutation_patient_tests.csv", index=False)
 
     bach_vmax = np.nanpercentile(np.concatenate([adatas[s].obs["BACH1_log_norm"].to_numpy(float) for s in samples]), 99.3)
     nod_values = np.concatenate([adatas[s].obs["NOD_like_score_scanpy"].to_numpy(float) for s in samples])
@@ -295,14 +362,14 @@ def main():
         adata = adatas[sample]
         row = selected_metrics[selected_metrics["sample"].eq(sample)].iloc[0]
         ax = fig.add_subplot(plate[i, 0])
-        sc_b = plot_spatial_metric(ax, adata, "BACH1_log_norm", f"{sample} {group}\nBACH1 expression", "Reds", vmin=0, vmax=bach_vmax)
+        sc_b = plot_spatial_metric(ax, adata, "BACH1_log_norm", f"{sample} {group}\nBACH1", "Reds", vmin=0, vmax=bach_vmax)
         add_spatial_annotation(ax, row)
         spatial_axes.append(ax)
         ax = fig.add_subplot(plate[i, 2])
-        sc_n = plot_spatial_metric(ax, adata, "NOD_like_score_scanpy", f"{sample} {group}\nNOD-like pathway score", "YlGnBu", vmin=nod_vmin, vmax=nod_vmax)
+        sc_n = plot_spatial_metric(ax, adata, "NOD_like_score_scanpy", f"{sample} {group}\nNOD score", "YlGnBu", vmin=nod_vmin, vmax=nod_vmax)
         spatial_axes.append(ax)
         ax = fig.add_subplot(plate[i, 4])
-        plot_cohigh(ax, adata, f"{sample} {group}\nBACH1/NOD high-state map")
+        plot_cohigh(ax, adata, f"{sample} {group}\nOverlap")
         spatial_axes.append(ax)
     add_panel_label(spatial_axes[0], "a", x=-0.10, y=1.04)
     add_panel_label(spatial_axes[1], "b", x=-0.10, y=1.04)
@@ -337,30 +404,24 @@ def main():
     )
 
     ax_d = fig.add_subplot(quant[0, 0])
-    paired_metric(ax_d, patient_summary, stats_table, "BACH1_detected_fraction", "BACH1+ spot fraction", "BACH1+ spots expand in tumors")
+    paired_metric(ax_d, patient_summary, stats_table, "BACH1_detected_fraction", "BACH1-detected spot fraction", "BACH1 detection")
+    add_qc_adjustment_note(ax_d, qc_model)
     add_panel_label(ax_d, "d")
 
     ax_e = fig.add_subplot(quant[0, 1])
-    paired_metric(ax_e, patient_summary, stats_table, "high_high_jaccard", "BACH1/NOD co-high Jaccard", "Co-high overlap increases")
+    paired_metric(ax_e, patient_summary, stats_table, "high_high_jaccard", "BACH1/NOD high-overlap Jaccard", "Overlap")
+    add_jaccard_permutation_note(ax_e, jaccard_tests)
     add_panel_label(ax_e, "e")
 
     ax_f = fig.add_subplot(quant[0, 2])
-    plot_section_correlation(ax_f, sample_metrics)
+    plot_patient_correlation(ax_f, patient_summary)
     add_panel_label(ax_f, "f")
 
     ax_g = fig.add_subplot(quant[0, 3])
     plot_effect_summary(ax_g, patient_summary, stats_table)
     add_panel_label(ax_g, "g", x=-0.05)
 
-    fig.suptitle(
-        "Spatial transcriptomics validates tumor-enriched BACH1 expression and BACH1/NOD-like pathway co-localization",
-        x=0.02,
-        y=0.995,
-        ha="left",
-        fontsize=11,
-        fontweight="bold",
-    )
-    fig.subplots_adjust(top=0.92, left=0.04, right=0.985, bottom=0.075)
+    fig.subplots_adjust(top=0.95, left=0.04, right=0.985, bottom=0.075)
     save_all(fig, "figure5_spatial_bach1_nod_validation")
     print(f"Wrote formal Figure 5 to {FIG}")
     print(f"Copied final PDFs to {FINAL}")

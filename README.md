@@ -1,30 +1,30 @@
-# BACH1 regulatory analysis in NSCLC
+# BACH1 regulatory-context analysis in NSCLC
 
-This repository contains the analysis code and figure source data for the integrated scRNA-seq, expression-derived CNV, BACH1-focused pySCENIC, scATAC-seq motif, pathway-enrichment and spatial-transcriptomic analyses in the accompanying NSCLC study.
+This repository contains the reproducible analysis code, environment files, documentation and lightweight source tables for the NSCLC BACH1 manuscript. The current code release matches the IF5-oriented submission version prepared on 2026-09-11.
 
-## Analysis scope
+## Analysis Scope
 
-- GSE131907 scRNA-seq: tumour lung and adjacent lung cells only.
-- GSE274934 scRNA-seq: nine tumour samples.
-- GSE274934 scATAC-seq: five author-filtered samples.
+- GSE131907 scRNA-seq: lung tumour and adjacent lung cells.
+- GSE274934 scRNA-seq: nine tumour GEX samples.
+- GSE274934 scATAC-seq: five author-filtered tumour samples.
 - E-MTAB-13530 spatial transcriptomics: 40 Visium sections, including eight tumour-adjacent patient pairs.
-- TCR sequencing and non-lung GSE131907 tissues are excluded.
+- TCGA-LUAD and TCGA-LUSC: bulk primary tumour score-association replication.
 
-The principal chromatin definition is a high-confidence BACH1 or Bach1::Mafk motif-bearing accessible peak within TSS +/-10 kb. The pySCENIC/scATAC overlap contains dual-evidence candidates; it is not presented as proof of direct BACH1 binding. Spatial co-localisation is likewise interpreted as association rather than causality.
+The primary single-cell analysis uses a 13,694-cell malignant epithelial set from 16 patients. The pySCENIC sensitivity analysis uses a 4,906-cell restricted CNV-consensus set and summarizes BACH1 target recurrence across seeds 777-781. scATAC-seq is used as tumour-tissue proximal accessible-motif context, not as proof of direct BACH1 binding.
 
-## Repository contents
+## Repository Contents
 
-- `scripts/`: analysis, download and plotting scripts.
+- `scripts/`: download, preprocessing, analysis, robustness, plotting and supplementary-table preparation scripts.
 - `environment/`: pinned analysis and pySCENIC environments.
-- `source_data/`: lightweight source tables for the reported figures.
-- `resources/`: checksums and instructions for external databases.
-- `docs/`: workflow, data manifest and transfer notes.
+- `source_data/`: lightweight source tables; `source_data/if5_submission_20260911/` contains the current IF5 submission tables.
+- `resources/`: instructions and checksums for external resources; large third-party databases are downloaded locally and not committed.
+- `docs/`: workflow and data/resource manifests.
 
-Raw data, intermediate AnnData objects, virtual environments and large third-party databases are intentionally excluded.
+Raw data, intermediate AnnData objects, virtual environments, complete pySCENIC databases, large reference resources, local manuscript builds and reviewer-comment working files are intentionally excluded from Git.
 
 ## Setup
 
-Python 3.11.5 was used. The main analysis and pySCENIC were run in separate environments.
+Python 3.11.5 was used for the main analysis environment. pySCENIC was run in a separate environment.
 
 ```bash
 conda create -n bach1-nsclc-analysis python=3.11.5 pip -y
@@ -38,20 +38,18 @@ conda activate bach1-pyscenic
 pip install -r environment/requirements-pyscenic.txt
 ```
 
-Scripts default to treating the repository as the project root, with `data/`, `out/` and `resources/` beneath it. Existing data and outputs can be stored elsewhere by defining:
+Scripts default to the repository root, with `data/`, `out/` and `resources/` underneath it. Existing data and outputs can be stored elsewhere by defining:
 
-```powershell
-$env:NSCLC_PROJECT_ROOT = "D:\BACH1_NSCLC_project"
-$env:NSCLC_DATA_DIR = "D:\BACH1_NSCLC_project\data"
-$env:NSCLC_OUTPUT_DIR = "D:\BACH1_NSCLC_project\out"
-$env:NSCLC_RESOURCES_DIR = "D:\BACH1_NSCLC_project\resources"
+```bash
+export NSCLC_PROJECT_ROOT=/path/to/BACH1_NSCLC_project
+export NSCLC_DATA_DIR=/path/to/BACH1_NSCLC_project/data
+export NSCLC_OUTPUT_DIR=/path/to/BACH1_NSCLC_project/out
+export NSCLC_RESOURCES_DIR=/path/to/BACH1_NSCLC_project/resources
 ```
 
-On Linux or macOS, use `export` with the same variable names.
+## Current Workflow
 
-## Workflow
-
-Run the following commands from the repository root. Computationally intensive stages are deliberately not wrapped in an unconditional `run_all` command.
+Run commands from the repository root. Computationally intensive stages are not wrapped in an unconditional `run_all` command.
 
 ```bash
 # Public inputs and reference databases
@@ -59,60 +57,77 @@ python scripts/download_geo_data.py
 python scripts/prepare_gse274934_gex.py
 python scripts/download_reference_resources.py
 
-# Integrated scRNA-seq atlas and Scanpy QC
+# Integrated scRNA-seq atlas and epithelial/CNV analysis
 python scripts/integrate_nsclc_scrna.py
 python scripts/run_scanpy_standard_qc.py
 python scripts/run_scanpy_downstream.py
-
-# CNV support and epithelial reclustering
 python scripts/run_epithelial_cnv_infercnvpy.py
 python scripts/run_epithelial_cnv_infercnvpy_sensitivity_no_dynamic_threshold.py
 python scripts/run_epithelial_cnv_adjacent_epithelial_reference.py
 python scripts/combine_epithelial_cnv_calls.py
 python scripts/run_epithelial_reclustering.py
 
-# BACH1 expression and co-expression
-python scripts/run_bach1_malignant_epithelial_analysis.py
-python scripts/prepare_pyscenic_input.py
+# Primary malignant epithelial analysis and external BACH1 activity robustness
+python scripts/run_bach1_malignant_epithelial_analysis.py --malignant-set primary
+python scripts/run_external_bach1_activity_analysis.py
+python scripts/run_bach1_hypoxia_robustness.py
+python scripts/run_final_inference_sensitivity.py
+python scripts/run_tcga_bach1_hypoxia_validation.py
 ```
 
-Activate the isolated pySCENIC environment for the next command:
+Activate the isolated pySCENIC environment for the restricted-consensus full-TF runs:
 
 ```bash
-python scripts/run_pyscenic_bach1.py --workers 4
+python scripts/run_bach1_malignant_epithelial_analysis.py --malignant-set consensus
+python scripts/prepare_pyscenic_input.py \
+  --input-h5ad out/bach1_malignant_epithelial_consensus/nsclc_malignant_epithelial_consensus_bach1_analysis_object.h5ad \
+  --output-dir out/bach1_malignant_epithelial_consensus_pyscenic
+
+python scripts/run_pyscenic_all_tfs.py --seed 777 --input-dir out/bach1_malignant_epithelial_consensus_pyscenic --output-dir out/bach1_malignant_epithelial_consensus_pyscenic_all_tfs --resume
+python scripts/run_pyscenic_all_tfs.py --seed 778 --input-dir out/bach1_malignant_epithelial_consensus_pyscenic --output-dir out/bach1_malignant_epithelial_consensus_pyscenic_all_tfs_seed778 --resume
+python scripts/run_pyscenic_all_tfs.py --seed 779 --input-dir out/bach1_malignant_epithelial_consensus_pyscenic --output-dir out/bach1_malignant_epithelial_consensus_pyscenic_all_tfs_seed779 --resume
+python scripts/run_pyscenic_all_tfs.py --seed 780 --input-dir out/bach1_malignant_epithelial_consensus_pyscenic --output-dir out/bach1_malignant_epithelial_consensus_pyscenic_all_tfs_seed780 --resume
+python scripts/run_pyscenic_all_tfs.py --seed 781 --input-dir out/bach1_malignant_epithelial_consensus_pyscenic --output-dir out/bach1_malignant_epithelial_consensus_pyscenic_all_tfs_seed781 --resume
 ```
 
 Return to the main analysis environment:
 
 ```bash
-python scripts/postprocess_bach1_pyscenic.py
-python scripts/run_bach1_atac_motif_support.py
-python scripts/run_bach1_intersection_enrichment.py
-python scripts/run_bach1_atac_proximal_go_kegg_enrichment.py
-python scripts/plot_bach1_nod_like_pathway.py
+python scripts/postprocess_pyscenic_all_tfs.py \
+  --input-h5ad out/bach1_malignant_epithelial_consensus/nsclc_malignant_epithelial_consensus_bach1_analysis_object.h5ad \
+  --pyscenic-dir out/bach1_malignant_epithelial_consensus_pyscenic_all_tfs
 
-# Spatial validation
-python scripts/download_emtab13530.py
-python scripts/analyze_emtab13530_bach1_nod.py
-python scripts/run_spatial_skill_supplement.py
+python scripts/compare_pyscenic_seed_stability.py \
+  --output-dir out/revision_diagnostics/pyscenic_bach1_consensus_full_tf_seed_stability_v1 \
+  --run seed777 out/bach1_malignant_epithelial_consensus_pyscenic_all_tfs \
+  --run seed778 out/bach1_malignant_epithelial_consensus_pyscenic_all_tfs_seed778 \
+  --run seed779 out/bach1_malignant_epithelial_consensus_pyscenic_all_tfs_seed779 \
+  --run seed780 out/bach1_malignant_epithelial_consensus_pyscenic_all_tfs_seed780 \
+  --run seed781 out/bach1_malignant_epithelial_consensus_pyscenic_all_tfs_seed781
 
-# Final figures
+python scripts/run_bach1_atac_motif_support_ucsc_targeted.py --query-mode bed
+python scripts/plot_supplementary_figure5_scatac_target_window_context.py
+python scripts/run_spatial_revision_statistics.py
+python scripts/run_spatial_bach1_nod_threshold_lopo_sensitivity.py
+python scripts/score_spatial_stable_bach1_regulon.py
+python scripts/replot_figure4_pyscenic_from_source_data.py
 python scripts/plot_bach1_story_4figures_10kb.py
 python scripts/plot_cnv_supplement_figure_s1.py
-python scripts/plot_figure5_formal_spatial_bach1_nod_validation.py
-python scripts/plot_figure3_revised_bach1_multislices.py
+python scripts/plot_spatial_skill_supplement_figure3.py
+python scripts/prepare_if5_supplementary_tables.py
 ```
 
-Detailed inputs, outputs and fixed thresholds are listed in `docs/WORKFLOW.md`.
+Detailed inputs, outputs and fixed analysis definitions are listed in `docs/WORKFLOW.md`.
 
-## Reproducibility notes
+## Current Manuscript Positioning
 
-- QC uses `n_genes_by_counts >= 200` and `< 5000`, `total_counts >= 500`, mitochondrial fraction `< 15%` and haemoglobin fraction `< 1%`. Ribosomal fraction is summarised but not used as a hard filter.
-- Random seed 7 is used for the principal scRNA-seq and CNV workflows; pySCENIC uses seed 777.
-- BACH1 pySCENIC is a targeted one-regulator analysis, not an all-transcription-factor network reconstruction.
-- Enrichr libraries are retrieved through GSEApy. The reported source tables are included because online libraries can be updated after publication.
-- Full reanalysis requires substantial memory and storage; the original project occupied approximately 51 GB before packaging.
+- The central result is a patient-level DoRothEA-derived BACH1 score associated with a hypoxia-related transcriptional context in primary NSCLC malignant epithelium.
+- The de-overlapped DoRothEA-hypoxia matched-null analysis uses an independent 81-gene null distribution after excluding ALDOA, HMOX1 and IL6.
+- TCGA-LUAD/LUSC provides bulk tumour replication of the score association.
+- pySCENIC provides seed-sensitive recurrent candidate prioritisation, with five-seed recurrence summarized independently from the seed-777 visualization.
+- scATAC-seq provides tumour-tissue accessible-motif support for candidate prioritisation.
+- Spatial/NOD analyses are tissue-context sensitivity analyses and remain supplementary.
 
 ## License
 
-Code is released under the MIT License. Public data and external reference databases remain subject to their original providers' terms.
+Code is released under the MIT License. Public datasets and external reference databases remain subject to their original providers' terms.

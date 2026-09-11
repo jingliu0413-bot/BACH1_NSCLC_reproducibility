@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import warnings
@@ -61,30 +62,118 @@ def safe_makedirs() -> None:
     FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def load_and_subset() -> sc.AnnData:
+def configure_outputs(malignant_set: str) -> None:
+    global OUTDIR, TABLE_DIR, FIG_DIR, PREFIX
+    if malignant_set == "working":
+        OUTDIR = BASE / "bach1_malignant_epithelial"
+        PREFIX = "nsclc_malignant_epithelial_bach1"
+    else:
+        OUTDIR = BASE / f"bach1_malignant_epithelial_{malignant_set}"
+        PREFIX = f"nsclc_malignant_epithelial_{malignant_set}_bach1"
+    TABLE_DIR = OUTDIR / "tables"
+    FIG_DIR = OUTDIR / "figures"
+
+
+def malignant_mask(ad: sc.AnnData, malignant_set: str) -> np.ndarray:
+    if malignant_set == "primary":
+        dataset = ad.obs["dataset"].astype(str) if "dataset" in ad.obs.columns else pd.Series("", index=ad.obs_names)
+        tissue = ad.obs["tissue_status"].astype(str).str.lower() if "tissue_status" in ad.obs.columns else pd.Series("tumor", index=ad.obs_names)
+        tumor = tissue.str.contains("tumor", case=False, na=False).to_numpy()
+
+        if "gse131907_author_tS_state" not in ad.obs.columns:
+            raise ValueError("gse131907_author_tS_state is absent from obs; cannot build the author-supported primary set.")
+        gse131_tumor_epithelial = (
+            dataset.eq("GSE131907")
+            & ad.obs["gse131907_author_tS_state"].astype(str).isin(["tS1", "tS2", "tS3"])
+        ).to_numpy()
+
+        if "n_cnv_methods_malignant" not in ad.obs.columns:
+            raise ValueError("n_cnv_methods_malignant is absent from obs; cannot build the CNV-supported primary set.")
+        n_cnv = pd.to_numeric(ad.obs["n_cnv_methods_malignant"], errors="coerce").fillna(0)
+        gse274_cnv_supported = (dataset.eq("GSE274934") & n_cnv.ge(1)).to_numpy()
+        return tumor & (gse131_tumor_epithelial | gse274_cnv_supported)
+    if malignant_set == "any_cnv":
+        col = "n_cnv_methods_malignant"
+        if col not in ad.obs.columns:
+            raise ValueError(f"{col} is absent from obs.")
+        return pd.to_numeric(ad.obs[col], errors="coerce").fillna(0).ge(1).to_numpy()
+    if malignant_set == "working":
+        col = "recommended_working_malignant"
+        if col not in ad.obs.columns:
+            raise ValueError(f"{col} is absent from obs.")
+        return ad.obs[col].fillna(False).astype(bool).to_numpy()
+    if malignant_set == "consensus":
+        col = "cnv_consensus_call"
+        if col not in ad.obs.columns:
+            raise ValueError(f"{col} is absent from obs.")
+        return ad.obs[col].astype(str).eq("consensus_malignant_epithelial").to_numpy()
+    if malignant_set == "sensitivity":
+        col = "sensitive_cnv_malignancy_call"
+        if col in ad.obs.columns:
+            return ad.obs[col].astype(str).eq("malignant_epithelial").to_numpy()
+        if "recommended_working_malignant" in ad.obs.columns:
+            return ad.obs["recommended_working_malignant"].fillna(False).astype(bool).to_numpy()
+        raise ValueError("Neither sensitive_cnv_malignancy_call nor recommended_working_malignant is present.")
+    if malignant_set == "stringent":
+        col = "strict_cnv_malignancy_call"
+        if col not in ad.obs.columns:
+            raise ValueError(f"{col} is absent from obs.")
+        return ad.obs[col].astype(str).eq("malignant_epithelial").to_numpy()
+    raise ValueError(f"Unsupported malignant set: {malignant_set}")
+
+
+def load_and_subset(malignant_set: str) -> sc.AnnData:
     log("Reading epithelial reclustering object")
     ad = sc.read_h5ad(INPUT_H5AD)
     if "BACH1" not in ad.var_names:
         raise ValueError("BACH1 is absent from var_names.")
-    if "recommended_working_malignant" not in ad.obs.columns:
-        raise ValueError("recommended_working_malignant is absent from obs.")
 
-    annot = pd.read_csv(MARKER_ONLY_ANNOT)
-    exclude_clusters = set(
-        annot.loc[
-            annot["exclude_from_epithelial_interpretation"].astype(str).str.lower().eq("yes"),
-            "epi_leiden",
-        ].astype(str)
-    )
-    malignant = ad.obs["recommended_working_malignant"].astype(bool).to_numpy()
-    epithelial_clean = ~ad.obs["epi_leiden"].astype(str).isin(exclude_clusters).to_numpy()
+    malignant = malignant_mask(ad, malignant_set)
+    epithelial_clean = np.ones(ad.n_obs, dtype=bool)
+    if MARKER_ONLY_ANNOT.exists():
+        annot = pd.read_csv(MARKER_ONLY_ANNOT)
+        exclude_clusters = set(
+            annot.loc[
+                annot["exclude_from_epithelial_interpretation"].astype(str).str.lower().eq("yes"),
+                "epi_leiden",
+            ].astype(str)
+        )
+        epithelial_clean = ~ad.obs["epi_leiden"].astype(str).isin(exclude_clusters).to_numpy()
     sub = ad[malignant & epithelial_clean].copy()
 
-    label_map = annot.set_index("epi_leiden")["marker_only_label"].to_dict()
-    broad_map = annot.set_index("epi_leiden")["broad_marker_only_class"].to_dict()
-    sub.obs["epi_marker_only_label"] = sub.obs["epi_leiden"].astype(str).map(label_map).astype("category")
-    sub.obs["epi_marker_only_broad_class"] = sub.obs["epi_leiden"].astype(str).map(broad_map).astype("category")
+    if MARKER_ONLY_ANNOT.exists():
+        label_map = annot.set_index("epi_leiden")["marker_only_label"].to_dict()
+        broad_map = annot.set_index("epi_leiden")["broad_marker_only_class"].to_dict()
+        sub.obs["epi_marker_only_label"] = sub.obs["epi_leiden"].astype(str).map(label_map).astype("category")
+        sub.obs["epi_marker_only_broad_class"] = sub.obs["epi_leiden"].astype(str).map(broad_map).astype("category")
+    else:
+        subtype = sub.obs["epi_subtype_auto"].astype(str) if "epi_subtype_auto" in sub.obs.columns else sub.obs["epi_leiden"].astype(str)
+        sub.obs["epi_marker_only_label"] = subtype.astype("category")
+        sub.obs["epi_marker_only_broad_class"] = subtype.str.replace(r"^CNV_(consensus|working)_", "", regex=True).astype("category")
+    sub.obs["analysis_malignant_set"] = malignant_set
     return sub
+
+
+def summarize_population(ad: sc.AnnData) -> dict:
+    summary = {
+        "n_cells": int(ad.n_obs),
+        "n_datasets": int(ad.obs["dataset"].nunique()) if "dataset" in ad.obs.columns else None,
+        "n_samples": int(ad.obs["sample_id"].nunique()) if "sample_id" in ad.obs.columns else None,
+        "n_patients": int(ad.obs["patient"].nunique()) if "patient" in ad.obs.columns else None,
+    }
+    for col in ["dataset", "sample_id", "patient", "tissue_status"]:
+        if col in ad.obs.columns:
+            counts = ad.obs[col].astype(str).value_counts()
+            summary[f"{col}_counts"] = {str(k): int(v) for k, v in counts.items()}
+            if not counts.empty:
+                summary[f"top_{col}"] = str(counts.index[0])
+                summary[f"top_{col}_fraction"] = float(counts.iloc[0] / ad.n_obs)
+    for col in ["total_counts", "n_genes_by_counts", "pct_counts_mt", "score_Epithelial", "score_Immune_contamination"]:
+        if col in ad.obs.columns:
+            vals = pd.to_numeric(ad.obs[col], errors="coerce")
+            summary[f"{col}_median"] = float(np.nanmedian(vals))
+            summary[f"{col}_mean"] = float(np.nanmean(vals))
+    return summary
 
 
 def assign_bach1_groups(ad: sc.AnnData) -> tuple[sc.AnnData, dict]:
@@ -428,13 +517,29 @@ def make_figures(ad: sc.AnnData, de: pd.DataFrame, combined: pd.DataFrame, activ
         savefig(fig, FIG_DIR / f"{PREFIX}_prior_target_activity")
 
 
-def write_report(stats_dict: dict, prior_status: dict, prior: pd.DataFrame, combined: pd.DataFrame) -> None:
+def write_report(
+    stats_dict: dict,
+    prior_status: dict,
+    prior: pd.DataFrame,
+    combined: pd.DataFrame,
+    malignant_set: str,
+) -> None:
     top_up = combined[(combined["gene"] != "BACH1") & (combined["logfoldchanges"] > 0)].head(30)
     top_down = combined[(combined["gene"] != "BACH1") & (combined["logfoldchanges"] < 0)].head(30)
     report = OUTDIR / f"{PREFIX}_report.md"
     with report.open("w", encoding="utf-8") as f:
         f.write("# BACH1 malignant epithelial analysis\n\n")
-        f.write("Analysis was restricted to working malignant epithelial cells after removing marker-defined immune-contaminated/doublet-like epithelial clusters.\n\n")
+        f.write(
+            f"Analysis was restricted to the {malignant_set} malignant epithelial set after removing "
+            "marker-defined immune-contaminated/doublet-like epithelial clusters.\n\n"
+        )
+        if malignant_set == "primary":
+            f.write(
+                "Primary set definition: GSE131907 tumour epithelial cells were taken from the authors' "
+                "tS1/tS2/tS3 annotation; GSE274934 tumour epithelial cells required support from at least "
+                "one CNV-inference call. Consensus and stringent CNV-only sets should be interpreted as "
+                "sensitivity analyses.\n\n"
+            )
         f.write("## BACH1 grouping\n\n")
         for k, v in stats_dict.items():
             f.write(f"- {k}: {v}\n")
@@ -450,19 +555,46 @@ def write_report(stats_dict: dict, prior_status: dict, prior: pd.DataFrame, comb
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--malignant-set",
+        choices=["primary", "any_cnv", "working", "consensus", "sensitivity", "stringent"],
+        default="working",
+        help="CNV-derived malignant epithelial set used for the BACH1 analysis.",
+    )
+    args = parser.parse_args()
+
     warnings.filterwarnings("ignore", category=FutureWarning)
+    configure_outputs(args.malignant_set)
     safe_makedirs()
-    ad = load_and_subset()
+    ad = load_and_subset(args.malignant_set)
     ad, stats_dict = assign_bach1_groups(ad)
+    stats_dict["analysis_malignant_set"] = args.malignant_set
+    stats_dict["population_summary"] = summarize_population(ad)
     stats_path = TABLE_DIR / f"{PREFIX}_bach1_grouping_stats.json"
     stats_path.write_text(json.dumps(stats_dict, indent=2), encoding="utf-8")
 
     cell_cols = [
-        "sample_id", "dataset", "tissue_status", "epi_leiden", "epi_marker_only_label",
-        "epi_marker_only_broad_class", "BACH1_expr", "BACH1_group",
+        "sample_id", "patient", "dataset", "tissue_status", "tumor_type", "cell_type_author",
+        "cell_subtype_author", "gse131907_author_tS_state", "epi_leiden", "epi_marker_only_label",
+        "epi_marker_only_broad_class", "analysis_malignant_set", "BACH1_expr", "BACH1_group",
     ]
-    if "cnv_consensus_call" in ad.obs.columns:
-        cell_cols.append("cnv_consensus_call")
+    for col in [
+        "total_counts",
+        "n_genes_by_counts",
+        "pct_counts_mt",
+        "score_Epithelial",
+        "score_Immune_contamination",
+        "cnv_consensus_call",
+        "n_cnv_methods_malignant",
+        "recommended_working_malignant",
+        "strict_cnv_malignancy_call",
+        "sensitive_cnv_malignancy_call",
+        "cnv_adjacent_ref_malignancy_call",
+    ]:
+        if col in ad.obs.columns:
+            cell_cols.append(col)
+    cell_cols = [c for c in dict.fromkeys(cell_cols) if c in ad.obs.columns]
     ad.obs[cell_cols].to_csv(TABLE_DIR / f"{PREFIX}_cell_metadata.csv.gz", compression="gzip")
 
     de = rank_high_low(ad)
@@ -487,7 +619,7 @@ def main() -> None:
         activity.to_csv(TABLE_DIR / f"{PREFIX}_bach1_prior_target_activity_by_cell.csv.gz", index=False, compression="gzip")
 
     make_figures(ad, de, combined, activity)
-    write_report(stats_dict, prior_status, prior, combined)
+    write_report(stats_dict, prior_status, prior, combined, args.malignant_set)
 
     ad.write_h5ad(OUTDIR / f"{PREFIX}_analysis_object.h5ad", compression="gzip")
     log("Done")
