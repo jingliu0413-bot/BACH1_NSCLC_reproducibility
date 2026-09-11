@@ -1,6 +1,6 @@
 # BACH1 regulatory-context analysis in NSCLC
 
-This repository contains the reproducible analysis code, environment files, documentation and lightweight source tables for the NSCLC BACH1 manuscript. The current code release matches the IF5-oriented submission version prepared on 2026-09-11.
+This repository contains the reproducible analysis code, environment files, documentation and lightweight source tables for the NSCLC BACH1 manuscript. The current code release matches the manuscript submission version prepared on 2026-09-11.
 
 ## Analysis Scope
 
@@ -16,7 +16,7 @@ The primary single-cell analysis uses a 13,694-cell malignant epithelial set fro
 
 - `scripts/`: download, preprocessing, analysis, robustness, plotting and supplementary-table preparation scripts.
 - `environment/`: pinned analysis and pySCENIC environments.
-- `source_data/`: lightweight source tables; `source_data/if5_submission_20260911/` contains the current IF5 submission tables.
+- `source_data/`: lightweight source tables; `source_data/manuscript_submission_20260911/` contains the current manuscript submission tables.
 - `resources/`: instructions and checksums for external resources; large third-party databases are downloaded locally and not committed.
 - `docs/`: workflow and data/resource manifests.
 
@@ -114,7 +114,7 @@ python scripts/replot_figure4_pyscenic_from_source_data.py
 python scripts/plot_bach1_story_4figures_10kb.py
 python scripts/plot_cnv_supplement_figure_s1.py
 python scripts/plot_spatial_skill_supplement_figure3.py
-python scripts/prepare_if5_supplementary_tables.py
+python scripts/prepare_supplementary_tables.py
 ```
 
 Detailed inputs, outputs and fixed analysis definitions are listed in `docs/WORKFLOW.md`.

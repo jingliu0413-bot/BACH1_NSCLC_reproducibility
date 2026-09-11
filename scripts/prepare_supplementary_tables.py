@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare IF5-oriented supplementary table CSVs from final source tables."""
+"""Prepare manuscript supplementary table CSVs from final source tables."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 READY = ROOT / "outputs" / "submission_ready_20260911"
 READY_TABLES = READY / "tables"
 ROBUST_TABLES = ROOT / "out" / "external_bach1_activity_robustness" / "tables"
-OUT = ROOT / "outputs" / "submission_if5_20260911" / "supplementary_tables"
+OUT = ROOT / "outputs" / "manuscript_submission_20260911" / "supplementary_tables"
 CSV_DIR = OUT / "csv"
 JSON_DIR = OUT / "json"
 
@@ -454,7 +454,7 @@ def build_readme() -> None:
             {
                 "file": file_name,
                 "description": desc,
-                "generated_by": "scripts/prepare_if5_supplementary_tables.py",
+                "generated_by": "scripts/prepare_supplementary_tables.py",
             }
             for file_name, desc in rows
         ],
@@ -464,7 +464,7 @@ def build_readme() -> None:
 def write_json_manifest() -> None:
     JSON_DIR.mkdir(parents=True, exist_ok=True)
     manifest = {
-        "generated_by": "scripts/prepare_if5_supplementary_tables.py",
+        "generated_by": "scripts/prepare_supplementary_tables.py",
         "output_directory": str(OUT.relative_to(ROOT)),
         "source_submission_table_directory": str(READY_TABLES.relative_to(ROOT)),
         "source_robustness_table_directory": str(ROBUST_TABLES.relative_to(ROOT)),
@@ -476,7 +476,7 @@ def write_json_manifest() -> None:
             "Supplementary Table 4": "pySCENIC seed stability plus software and external resources.",
         },
     }
-    (JSON_DIR / "if5_supplementary_tables_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    (JSON_DIR / "supplementary_tables_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
 
 def main() -> None:

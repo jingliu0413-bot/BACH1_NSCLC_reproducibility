@@ -1,6 +1,6 @@
 # Reproducible Workflow
 
-This document describes the current IF5-oriented analysis workflow. Large raw data, intermediate AnnData objects and external databases are not tracked in Git; scripts write those products under `data/`, `out/` or a user-defined output directory.
+This document describes the current manuscript submission analysis workflow. Large raw data, intermediate AnnData objects and external databases are not tracked in Git; scripts write those products under `data/`, `out/` or a user-defined output directory.
 
 ## Ordered Analysis Stages
 
@@ -36,7 +36,7 @@ This document describes the current IF5-oriented analysis workflow. Large raw da
 | 10.2 | `plot_bach1_story_4figures_10kb.py` | Final analysis outputs | Main Figures 1-4 |
 | 10.3 | `plot_cnv_supplement_figure_s1.py` | CNV outputs | Supplementary Figure 1 |
 | 10.4 | `plot_spatial_skill_supplement_figure3.py` | Spatial outputs | Supplementary spatial QC/domain/signature figure |
-| 10.5 | `prepare_if5_supplementary_tables.py` | Final result tables | Combined supplementary workbook source sheets |
+| 10.5 | `prepare_supplementary_tables.py` | Final result tables | Combined supplementary workbook source sheets |
 
 ## Fixed Analysis Definitions
 

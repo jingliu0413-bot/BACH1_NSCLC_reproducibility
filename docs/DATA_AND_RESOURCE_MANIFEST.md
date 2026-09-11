@@ -26,9 +26,9 @@ E-MTAB-13530 requires `E-MTAB-13530.sdrf.txt`, one filtered feature-barcode HDF5
 
 ## Lightweight Source Tables
 
-The current IF5 submission source tables are stored in:
+The current manuscript submission source tables are stored in:
 
-- `source_data/if5_submission_20260911/`
+- `source_data/manuscript_submission_20260911/`
 
 These tables include Figure 2/3/4 source summaries, external BACH1 activity tables, matched-null diagnostics, TCGA model outputs, spatial sensitivity summaries and current Figure 4 restricted-consensus pySCENIC source tables. Root-level `source_data/figure*` files are retained as legacy lightweight figure-source tables from the first code-release package.
 

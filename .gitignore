@@ -48,7 +48,7 @@ resources/bach1_external_signatures/
 
 # Local handoff notes and manuscript build artifacts are not part of the public code release.
 docs/CODEX_HANDOFF_CN.md
-scripts/build_if5_supplementary_workbook.mjs
+scripts/build_supplementary_workbook.mjs
 scripts/polish_existing_pdf_figures.py
 scripts/polish_manuscript_prose_and_references.py
 scripts/revise_manuscript_for_*.py
