@@ -231,7 +231,7 @@ def draw_workflow(ax):
         (0.51, 0.60, 0.16, 0.22, "External\nBACH1 scores", COL["violet_soft"]),
         (0.74, 0.60, 0.16, 0.22, "TCGA\nvalidation", COL["green_soft"]),
         (0.39, 0.18, 0.18, 0.20, "Regulatory\nsensitivity", COL["violet_soft"]),
-        (0.66, 0.18, 0.18, 0.20, "ATAC and\nspatial context", COL["teal_soft"]),
+        (0.66, 0.18, 0.18, 0.20, "ATAC candidate\ncontext", COL["teal_soft"]),
     ]
     for x, y, w, h, text, fc in boxes:
         ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.012,rounding_size=0.018", fc=fc, ec="#555555", lw=0.7))
@@ -831,8 +831,13 @@ def make_figure1():
     plot_marker_dotplot(ax_d)
     add_panel_label(ax_d, "d", x=-0.055)
     ax_e = fig.add_subplot(gs[2, :2])
-    plot_umap_categorical(ax_e, epi, "malignant_call", {"non-malignant": "#B8C0CC", "malignant": COL["red"]}, "Malignant epithelium", s=1.15, alpha=0.75)
+    plot_umap_categorical(ax_e, epi, "malignant_call", {"non-malignant": "#B8C0CC", "malignant": COL["red"]}, "Malignant epithelium", s=1.15, alpha=0.75, label=False)
     add_panel_label(ax_e, "e", x=-0.04)
+    handles = [
+        plt.Line2D([0], [0], marker="o", color="none", markerfacecolor=COL["red"], markeredgecolor="none", label="malignant", markersize=4.5),
+        plt.Line2D([0], [0], marker="o", color="none", markerfacecolor="#B8C0CC", markeredgecolor="none", label="non-malignant", markersize=4.5),
+    ]
+    ax_e.legend(handles=handles, loc="upper right", bbox_to_anchor=(0.99, 0.98), fontsize=6, handletextpad=0.35, borderpad=0.2, labelspacing=0.25)
     ax_e.text(0.01, 0.02, f"{(epi['malignant_call']=='malignant').sum():,} malignant epithelial cells", transform=ax_e.transAxes, fontsize=6, ha="left", va="bottom", bbox={"fc": "white", "ec": "none", "alpha": 0.75, "pad": 1.0})
     ax_f = fig.add_subplot(gs[2, 2:])
     plot_umap_continuous(ax_f, bach1, "BACH1_expr", "BACH1 expression", cmap="magma", s=2.8)
