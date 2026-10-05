@@ -119,6 +119,18 @@ python scripts/plot_spatial_skill_supplement_figure3.py
 python scripts/prepare_supplementary_tables.py
 ```
 
+Optional post-submission ICI feasibility work is kept separate from the
+manuscript analysis. The public GSE243013 metadata audit can be run with:
+
+```bash
+python scripts/run_gse243013_state_mpr_feasibility.py
+```
+
+OAK/POPLAR interaction analysis is gated on approved EGA-derived expression
+and clinical files. The access request and frozen model plan are documented in
+`docs/OAK_POPLAR_EGA_ACCESS_REQUEST.md` and
+`docs/OAK_POPLAR_ICI_INTERACTION_ANALYSIS_PLAN.md`.
+
 Detailed inputs, outputs and fixed analysis definitions are listed in `docs/WORKFLOW.md`.
 
 ## Current Manuscript Positioning
