@@ -123,7 +123,7 @@ def save_all(fig: plt.Figure, stem: str) -> None:
     plt.close(fig)
 
 
-def panel_label(ax: plt.Axes, label: str, x: float = -0.1, y: float = 1.04) -> None:
+def panel_label(ax: plt.Axes, label: str, x: float = -0.08, y: float = 1.03) -> None:
     ax.text(x, y, label, transform=ax.transAxes, fontweight="bold", fontsize=13, ha="left", va="bottom")
 
 
@@ -175,14 +175,14 @@ def draw_workflow(ax: plt.Axes) -> None:
     ax.axis("off")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
+    ax.text(0.0, 0.96, "Study design", ha="left", va="top", fontsize=9.5, fontweight="semibold")
     boxes = [
-        (0.035, 0.58, 0.135, 0.24, "NSCLC\nscRNA atlas", "#E8EEF7"),
-        (0.225, 0.58, 0.135, 0.24, "Malignant\nepithelium", "#F6CFCB"),
-        (0.415, 0.58, 0.165, 0.24, "BACH1-hypoxia\nassociation", "#ECE7F2"),
-        (0.635, 0.58, 0.145, 0.24, "Epithelial-state\ncontext", "#F3E4C7"),
-        (0.835, 0.58, 0.135, 0.24, "TCGA\nreplication", "#EAF2E5"),
-        (0.34, 0.17, 0.21, 0.22, "Regulatory\ncandidate\nanalysis", "#ECE7F2"),
-        (0.64, 0.17, 0.18, 0.22, "ATAC candidate\ncontext", "#DCEFEF"),
+        (0.015, 0.38, 0.145, 0.28, "NSCLC\nscRNA atlas", "#E8EEF7"),
+        (0.180, 0.38, 0.145, 0.28, "Malignant\nepithelium", "#F6CFCB"),
+        (0.345, 0.38, 0.145, 0.28, "BACH1–hypoxia\ncovariance", "#EFEAF4"),
+        (0.510, 0.38, 0.145, 0.28, "Epithelial-state\narchitecture", "#F3E4C7"),
+        (0.675, 0.38, 0.145, 0.28, "Pan-TF / TCGA\nreplication", "#EAF2E5"),
+        (0.840, 0.38, 0.145, 0.28, "Independent spatial\nreplication", "#E3F0F0"),
     ]
     for x, y, w, h, text, color in boxes:
         ax.add_patch(
@@ -196,16 +196,15 @@ def draw_workflow(ax: plt.Axes) -> None:
                 lw=0.8,
             )
         )
-        label_size = 7.2 if ("Regulatory" in text or "association" in text or "Epithelial-state" in text) else 8
-        line_space = 0.9 if ("Regulatory" in text or "association" in text) else 1.0
+        label_size = 7.2 if ("covariance" in text or "architecture" in text or "replication" in text) else 8
+        line_space = 0.9 if ("covariance" in text or "replication" in text) else 1.0
         ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=label_size, linespacing=line_space)
     for start, end in [
-        ((0.17, 0.70), (0.225, 0.70)),
-        ((0.36, 0.70), (0.415, 0.70)),
-        ((0.58, 0.70), (0.635, 0.70)),
-        ((0.78, 0.70), (0.835, 0.70)),
-        ((0.295, 0.58), (0.445, 0.39)),
-        ((0.55, 0.28), (0.64, 0.28)),
+        ((0.160, 0.52), (0.180, 0.52)),
+        ((0.325, 0.52), (0.345, 0.52)),
+        ((0.490, 0.52), (0.510, 0.52)),
+        ((0.655, 0.52), (0.675, 0.52)),
+        ((0.820, 0.52), (0.840, 0.52)),
     ]:
         ax.add_patch(FancyArrowPatch(start, end, arrowstyle="-|>", mutation_scale=10, lw=0.8, color="#555555"))
 
@@ -226,27 +225,48 @@ def plot_figure1() -> None:
     bach1 = pd.read_csv(FIG1_SOURCE / "figure1_panel_f_bach1_expression_umap_source.csv.gz")
 
     set_style()
-    fig = plt.figure(figsize=(13.4, 8.8))
+    fig = plt.figure(figsize=(13.4, 7.9))
     gs = fig.add_gridspec(
         3,
         4,
-        height_ratios=[0.58, 1.08, 1.08],
+        height_ratios=[0.48, 1.10, 1.10],
         width_ratios=[1.0, 1.0, 1.06, 1.06],
-        hspace=0.40,
-        wspace=0.44,
+        hspace=0.31,
+        wspace=0.38,
     )
 
     ax = fig.add_subplot(gs[0, :])
     draw_workflow(ax)
-    panel_label(ax, "a", x=0.0, y=1.01)
+    panel_label(ax, "a")
 
     ax = fig.add_subplot(gs[1, :2])
     plot_umap_categorical(ax, atlas, "major_celltype_auto", CELLTYPE_COLORS, point_size=0.45, alpha=0.68)
     centroids = atlas.groupby("major_celltype_auto", observed=True)[["UMAP1", "UMAP2"]].median()
+    label_offsets = {
+        "B": (-0.55, 0.55),
+        "T/NK": (-0.55, 0.05),
+        "Plasma": (0.35, -0.75),
+        "Mast": (-0.35, -0.75),
+        "Fibroblast": (0.35, -0.75),
+        "Epithelial": (0.35, -0.75),
+        "Endothelial": (1.00, 0.35),
+        "Myeloid": (0.55, 0.70),
+    }
     for ct in CELLTYPE_ORDER:
         if ct in centroids.index:
-            ax.text(centroids.loc[ct, "UMAP1"], centroids.loc[ct, "UMAP2"], ct, fontsize=6.5, ha="center", va="center")
-    ax.set_title("Cell types", loc="left", fontsize=9, pad=2)
+            x0 = centroids.loc[ct, "UMAP1"]
+            y0 = centroids.loc[ct, "UMAP2"]
+            dx, dy = label_offsets.get(ct, (0.0, 0.0))
+            ax.annotate(
+                ct,
+                xy=(x0, y0),
+                xytext=(x0 + dx, y0 + dy),
+                fontsize=6.1,
+                ha="right" if dx < 0 else "left",
+                va="center",
+                arrowprops={"arrowstyle": "-", "color": "#666666", "lw": 0.35, "shrinkA": 2, "shrinkB": 2},
+            )
+    ax.set_title("Integrated NSCLC single-cell atlas", loc="left", fontsize=9, pad=2)
     ax.text(0.01, 0.02, f"{len(atlas):,} cells", transform=ax.transAxes, fontsize=7, ha="left", va="bottom")
     panel_label(ax, "b")
 
@@ -269,23 +289,23 @@ def plot_figure1() -> None:
         linewidth=0.35,
     )
     ax.set_xticks(np.arange(len(genes)))
-    ax.set_xticklabels(genes, rotation=45, ha="right", fontsize=7)
+    ax.set_xticklabels(genes, rotation=45, ha="right", fontsize=7.6)
     ax.set_yticks(np.arange(len(groups)))
-    ax.set_yticklabels(groups[::-1], fontsize=7)
+    ax.set_yticklabels(groups[::-1], fontsize=7.6)
     ax.set_xlim(-0.6, len(genes) - 0.4)
     ax.set_ylim(-0.6, len(groups) - 0.4)
-    ax.set_title("Markers", loc="left", fontsize=9, pad=2)
+    ax.set_title("Canonical marker validation", loc="left", fontsize=9, pad=2)
     ax.grid(color="#E5E7EB", lw=0.45)
     ax.set_axisbelow(True)
     cb = plt.colorbar(sc, ax=ax, fraction=0.040, pad=0.015)
-    cb.set_label("scaled mean\nexpression", fontsize=7)
-    cb.ax.tick_params(labelsize=6, width=0.4)
+    cb.set_label("scaled mean\nexpression", fontsize=7.2)
+    cb.ax.tick_params(labelsize=6.2, width=0.4)
     cb.outline.set_linewidth(0.4)
     for pct, xp in zip([25, 50, 75], [0.08, 0.18, 0.30]):
         ax.scatter(xp, -0.18, s=8 + pct * 0.72, transform=ax.transAxes, color="#AEB7C2", edgecolor="white", linewidth=0.3, clip_on=False)
         ax.text(xp + 0.035, -0.18, f"{pct}%", transform=ax.transAxes, va="center", ha="left", fontsize=6, color="#767676")
     ax.text(0.08, -0.29, "fraction expressing", transform=ax.transAxes, va="center", ha="left", fontsize=6, color="#767676")
-    panel_label(ax, "c", x=-0.055)
+    panel_label(ax, "c")
 
     ax = fig.add_subplot(gs[2, :2])
     plot_umap_categorical(
@@ -296,7 +316,7 @@ def plot_figure1() -> None:
         point_size=1.15,
         alpha=0.75,
     )
-    ax.set_title("Malignant epithelium", loc="left", fontsize=9, pad=2)
+    ax.set_title("Malignant epithelial selection", loc="left", fontsize=9, pad=2)
     ax.add_patch(
         FancyBboxPatch(
             (0.70, 0.835),
@@ -311,44 +331,68 @@ def plot_figure1() -> None:
         )
     )
     ax.scatter([0.725], [0.915], transform=ax.transAxes, s=26, color="#D9544D", edgecolor="none", zorder=5)
-    ax.text(0.755, 0.915, "malignant", transform=ax.transAxes, fontsize=7, va="center", ha="left", zorder=5)
+    ax.text(0.755, 0.915, "retained malignant", transform=ax.transAxes, fontsize=6.8, va="center", ha="left", zorder=5)
     ax.scatter([0.725], [0.865], transform=ax.transAxes, s=26, color="#B8C0CC", edgecolor="none", zorder=5)
-    ax.text(0.755, 0.865, "non-malignant", transform=ax.transAxes, fontsize=7, va="center", ha="left", zorder=5)
+    ax.text(0.755, 0.865, "other epithelial cells", transform=ax.transAxes, fontsize=6.8, va="center", ha="left", zorder=5)
     ax.text(
         0.01,
         0.02,
-        f"{(epithelial['malignant_call'] == 'malignant').sum():,} malignant epithelial cells",
+        f"{(epithelial['malignant_call'] == 'malignant').sum():,} malignant epithelial cells · 16 patients",
         transform=ax.transAxes,
         fontsize=7,
         ha="left",
         va="bottom",
         bbox={"fc": "white", "ec": "none", "alpha": 0.75, "pad": 1.0},
     )
-    panel_label(ax, "d", x=-0.04)
+    panel_label(ax, "d")
 
     ax = fig.add_subplot(gs[2, 2:])
     vals = pd.to_numeric(bach1["BACH1_expr"], errors="coerce")
-    ax.scatter(bach1["UMAP1"], bach1["UMAP2"], s=2.8, c="#D9D9D9", alpha=0.25, linewidths=0, rasterized=True)
-    sc = ax.scatter(
-        bach1["UMAP1"],
-        bach1["UMAP2"],
+    zero = vals.fillna(0).eq(0)
+    ax.scatter(
+        bach1.loc[zero, "UMAP1"],
+        bach1.loc[zero, "UMAP2"],
         s=2.8,
-        c=vals,
+        c="#D9D9D9",
+        alpha=0.58,
+        linewidths=0,
+        rasterized=True,
+    )
+    positive = vals.gt(0)
+    positive_vals = vals.loc[positive]
+    sc = ax.scatter(
+        bach1.loc[positive, "UMAP1"],
+        bach1.loc[positive, "UMAP2"],
+        s=2.8,
+        c=positive_vals,
         cmap="magma",
-        vmin=np.nanquantile(vals, 0.02),
-        vmax=np.nanquantile(vals, 0.98),
+        vmin=0,
+        vmax=np.nanquantile(positive_vals, 0.98),
         alpha=0.86,
         linewidths=0,
         rasterized=True,
     )
-    ax.set_title("BACH1 expression", loc="left", fontsize=9, pad=2)
+    ax.set_title("BACH1 transcript heterogeneity", loc="left", fontsize=9, pad=2)
     format_umap_axes(ax)
+    ax.set_xlim(epithelial["UMAP1"].min(), epithelial["UMAP1"].max())
+    ax.set_ylim(epithelial["UMAP2"].min(), epithelial["UMAP2"].max())
+    ax.text(
+        0.98,
+        0.96,
+        f"BACH1 detected: {positive.mean() * 100:.1f}%",
+        transform=ax.transAxes,
+        ha="right",
+        va="top",
+        fontsize=7,
+        bbox={"fc": "white", "ec": "none", "alpha": 0.82, "pad": 1.0},
+    )
     cb = plt.colorbar(sc, ax=ax, fraction=0.045, pad=0.02)
     cb.ax.tick_params(labelsize=6, width=0.4)
     cb.outline.set_linewidth(0.4)
-    panel_label(ax, "e", x=-0.04)
+    cb.set_label("log-normalized\nBACH1", fontsize=7)
+    panel_label(ax, "e")
 
-    fig.subplots_adjust(top=0.95)
+    fig.subplots_adjust(top=0.95, bottom=0.08)
     save_all(fig, "Figure1_cellular_context")
 
 
