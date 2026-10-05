@@ -36,4 +36,8 @@ chemotherapy=0 and atezolizumab=1, and the score enters models after
 within-trial 1-SD standardization. Primary Cox fits use complete cases without
 outcome-informed imputation, report Schoenfeld-residual PH diagnostics, and
 only add a time-varying interaction as a sensitivity analysis if the PH check
-indicates clear non-proportionality.
+indicates clear non-proportionality. A second sensitivity model stratifies the
+baseline hazard by trial, and trial-specific interaction estimates are
+reported in a forest plot alongside the pooled estimates. The analysis plan is
+now frozen; later changes require a dated amendment documenting outcome-access
+status.

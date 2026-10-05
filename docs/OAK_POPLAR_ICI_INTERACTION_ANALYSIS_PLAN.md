@@ -1,7 +1,8 @@
 # OAK/POPLAR ICI interaction analysis plan
 
-This plan is frozen before access to clinical outcomes is used for score
-selection.
+**Plan status: frozen on 5 October 2026, before access to clinical outcomes.**
+Any subsequent change requires a dated amendment stating whether outcomes had
+been accessed.
 
 ## Score
 
@@ -16,6 +17,10 @@ higher score. Record target coverage and missing genes before fitting models.
 
 Treatment coding is fixed in advance: chemotherapy is the reference arm
 (`treatment=0`) and atezolizumab is the exposed arm (`treatment=1`).
+With chemotherapy coded as the reference arm, an interaction hazard ratio
+below 1 indicates that a higher BACH1 score is associated with relatively
+greater benefit from atezolizumab versus chemotherapy; an interaction hazard
+ratio above 1 indicates relatively less benefit.
 
 ## Primary model
 
@@ -36,6 +41,13 @@ hazards will be assessed using Schoenfeld-residual diagnostics. If the
 score-by-treatment interaction shows clear evidence of non-proportionality,
 a time-varying interaction model will be reported as a sensitivity analysis,
 not as a replacement for the primary model.
+
+A prespecified sensitivity model will use the same score, treatment,
+score-by-treatment interaction and histology terms while stratifying the
+baseline hazard by trial. Trial-specific interaction estimates and 95%
+confidence intervals will be displayed with the pooled estimates in a forest
+plot; these estimates are descriptive sensitivity results and do not replace
+the pooled primary interaction test.
 
 No cutoff optimization, outcome-driven gene selection, or arm-specific score
 threshold will be performed. OAK and POPLAR will also be reported separately

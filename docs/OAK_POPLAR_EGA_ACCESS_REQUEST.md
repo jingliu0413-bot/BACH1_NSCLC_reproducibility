@@ -14,7 +14,8 @@ with Vivli clinical data from the same trials.
 
 DAC: `EGAC00001002120` (Genentech). The request should cover both expression
 and clinical data under one approved project and should state that the analysis
-will use gene expression and clinical outcomes only.
+will use gene-expression data, clinical outcomes, and prespecified biomarker
+variables where available.
 
 ## Proposed request text
 
@@ -24,5 +25,4 @@ The score is the de-overlapped 81-target DoRothEA BACH1 score already used in
 the NSCLC manuscript, with ALDOA, HMOX1 and IL6 excluded. Treatment coding is
 fixed as chemotherapy=0 (reference) and atezolizumab=1. Within each trial,
 the score will be standardized to one standard deviation before model fitting.
-The planned analysis is exploratory and will be reported separately from the
-current manuscript unless access and results are available during revision.
+The planned analysis is exploratory.

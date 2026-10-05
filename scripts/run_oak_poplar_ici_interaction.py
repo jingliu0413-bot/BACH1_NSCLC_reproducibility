@@ -13,6 +13,10 @@ import argparse
 import json
 from pathlib import Path
 
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -133,12 +137,20 @@ def build_study(expression_path: Path, clinical_path: Path, trial: str, args: ar
     return out, audit
 
 
-def design(df: pd.DataFrame, time_col: str | None = None) -> tuple[pd.DataFrame, list[str]]:
+def design(
+    df: pd.DataFrame,
+    time_col: str | None = None,
+    include_trial_covariate: bool = True,
+) -> tuple[pd.DataFrame, list[str]]:
     x = pd.DataFrame({"intercept": 1.0, "score_z": df["score_z"], "treatment_atezo": df["treatment_atezo"], "score_treatment_interaction": df["score_treatment_interaction"]}, index=df.index)
     if time_col is not None:
         log_time = np.log(np.maximum(pd.to_numeric(df[time_col], errors="coerce"), np.finfo(float).tiny))
         x["score_treatment_log_time"] = df["score_treatment_interaction"] * log_time
-    x = pd.concat([x, pd.get_dummies(df["trial"], prefix="trial", drop_first=True, dtype=float), pd.get_dummies(df["histology"], prefix="histology", drop_first=True, dtype=float)], axis=1)
+    covariates = [x]
+    if include_trial_covariate:
+        covariates.append(pd.get_dummies(df["trial"], prefix="trial", drop_first=True, dtype=float))
+    covariates.append(pd.get_dummies(df["histology"], prefix="histology", drop_first=True, dtype=float))
+    x = pd.concat(covariates, axis=1)
     return x.astype(float), x.columns.tolist()
 
 
@@ -174,6 +186,18 @@ def fit_time_varying_interaction(keep: pd.DataFrame, time_col: str, event_col: s
     return {"status": "fit", "terms": names, "coef": fit.params.tolist(), "hazard_ratio": np.exp(fit.params).tolist(), "p_value": fit.pvalues.tolist(), "time_varying_interaction_p": float(fit.pvalues[index])}
 
 
+def interaction_summary(fit: object, names: list[str]) -> dict:
+    index = names.index("score_treatment_interaction")
+    confidence = np.asarray(fit.conf_int(), dtype=float)
+    return {
+        "interaction_hr": float(np.exp(fit.params[index])),
+        "interaction_ci_lower": float(np.exp(confidence[index, 0])),
+        "interaction_ci_upper": float(np.exp(confidence[index, 1])),
+        "interaction_p": float(fit.pvalues[index]),
+        "interpretation": "HR<1 indicates relatively greater atezolizumab benefit per 1-SD higher score; HR>1 indicates relatively less benefit",
+    }
+
+
 def fit_cox(df: pd.DataFrame, time_col: str, event_col: str) -> dict:
     keep = df[[time_col, event_col, "score_z", "treatment_atezo", "score_treatment_interaction", "trial", "histology"]].dropna()
     if len(keep) < 20 or keep[event_col].sum() < 5:
@@ -181,12 +205,25 @@ def fit_cox(df: pd.DataFrame, time_col: str, event_col: str) -> dict:
     x, names = design(keep)
     fit = PHReg(keep[time_col].astype(float), x.to_numpy(), status=keep[event_col].astype(int), ties="breslow").fit(disp=False)
     ph = ph_diagnostics(fit, keep, names, time_col, event_col)
-    result = {"endpoint": time_col, "n": int(len(keep)), "events": int(keep[event_col].sum()), "status": "fit", "complete_case_rule": True, "no_outcome_informed_imputation": True, "terms": names, "coef": fit.params.tolist(), "hazard_ratio": np.exp(fit.params).tolist(), "p_value": fit.pvalues.tolist(), "interaction_p": float(fit.pvalues[names.index("score_treatment_interaction")]), "ph_check": ph, "time_varying_sensitivity": {"status": "not_triggered"}}
+    result = {"endpoint": time_col, "n": int(len(keep)), "events": int(keep[event_col].sum()), "status": "fit", "complete_case_rule": True, "no_outcome_informed_imputation": True, "terms": names, "coef": fit.params.tolist(), "hazard_ratio": np.exp(fit.params).tolist(), "p_value": fit.pvalues.tolist(), "ph_check": ph, "time_varying_sensitivity": {"status": "not_triggered"}}
+    result.update(interaction_summary(fit, names))
     if ph.get("interaction_p") is not None and ph["interaction_p"] < 0.05:
         try:
             result["time_varying_sensitivity"] = fit_time_varying_interaction(keep, time_col, event_col)
         except Exception as exc:  # pragma: no cover - numerical failure is data-dependent
             result["time_varying_sensitivity"] = {"status": "failed", "reason": str(exc)}
+    return result
+
+
+def fit_trial_stratified_cox(df: pd.DataFrame, time_col: str, event_col: str) -> dict:
+    columns = [time_col, event_col, "score_z", "treatment_atezo", "score_treatment_interaction", "trial", "histology"]
+    keep = df[columns].dropna()
+    if len(keep) < 20 or keep[event_col].sum() < 5 or keep["trial"].nunique() < 2:
+        return {"endpoint": time_col, "n": int(len(keep)), "events": int(keep[event_col].sum()), "status": "insufficient_events_or_strata", "complete_case_rule": True}
+    x, names = design(keep, include_trial_covariate=False)
+    fit = PHReg(keep[time_col].astype(float), x.to_numpy(), status=keep[event_col].astype(int), strata=keep["trial"].astype(str).to_numpy(), ties="breslow").fit(disp=False)
+    result = {"endpoint": time_col, "n": int(len(keep)), "events": int(keep[event_col].sum()), "status": "fit", "model": "trial-stratified baseline hazard", "complete_case_rule": True, "no_outcome_informed_imputation": True, "terms": names, "coef": fit.params.tolist(), "hazard_ratio": np.exp(fit.params).tolist(), "p_value": fit.pvalues.tolist(), "ph_check": ph_diagnostics(fit, keep, names, time_col, event_col)}
+    result.update(interaction_summary(fit, names))
     return result
 
 
@@ -202,6 +239,58 @@ def fit_response(df: pd.DataFrame) -> dict:
     return {"status": "fit", "n": int(len(keep)), "terms": names, "coef": fit.params.tolist(), "odds_ratio": np.exp(fit.params).tolist(), "p_value": fit.pvalues.tolist(), "interaction_p": float(fit.pvalues["score_treatment_interaction"])}
 
 
+def write_interaction_forest(results: dict, output_dir: Path) -> None:
+    records = []
+
+    def append_result(endpoint: str, label: str, model: str, result: dict) -> None:
+        if result.get("status") != "fit":
+            return
+        records.append({
+            "endpoint": endpoint,
+            "label": label,
+            "model": model,
+            "interaction_hr": result["interaction_hr"],
+            "ci_lower": result["interaction_ci_lower"],
+            "ci_upper": result["interaction_ci_upper"],
+            "p_value": result["interaction_p"],
+            "n": result["n"],
+            "events": result["events"],
+        })
+
+    for endpoint in ("PFS", "OS"):
+        append_result(endpoint, "Pooled primary", "trial covariate", results[endpoint])
+        append_result(endpoint, "Pooled sensitivity", "trial-stratified baseline hazard", results["trial_stratified_sensitivity"][endpoint])
+        for trial in ("POPLAR", "OAK"):
+            append_result(endpoint, trial, "trial-specific", results["trial_specific_interactions"][endpoint][trial])
+
+    table = pd.DataFrame.from_records(records)
+    table.to_csv(output_dir / "OAK_POPLAR_trial_specific_interaction_estimates.csv", index=False)
+    if table.empty:
+        return
+
+    label_order = ["Pooled primary", "Pooled sensitivity", "POPLAR", "OAK"]
+    figure, axes = plt.subplots(1, 2, figsize=(9.2, 4.4), constrained_layout=True)
+    for axis, endpoint in zip(axes, ("PFS", "OS")):
+        subset = table[table["endpoint"].eq(endpoint)].set_index("label").reindex(label_order).dropna(subset=["interaction_hr"])
+        y = np.arange(len(subset))
+        lower = subset["interaction_hr"].to_numpy() - subset["ci_lower"].to_numpy()
+        upper = subset["ci_upper"].to_numpy() - subset["interaction_hr"].to_numpy()
+        axis.errorbar(subset["interaction_hr"], y, xerr=np.vstack([lower, upper]), fmt="o", color="#B43C39", ecolor="#4A4A4A", capsize=3)
+        axis.axvline(1.0, color="#777777", linewidth=1, linestyle="--")
+        axis.set_xscale("log")
+        axis.set_yticks(y)
+        axis.set_yticklabels(subset.index)
+        axis.invert_yaxis()
+        axis.set_title(endpoint)
+        axis.set_xlabel("Score x treatment HR (95% CI)")
+        axis.grid(axis="x", color="#E1E1E1", linewidth=0.7)
+    figure.suptitle("OAK/POPLAR trial-specific treatment-interaction sensitivity")
+    figure.text(0.5, 0.005, "HR < 1 indicates relatively greater atezolizumab benefit per 1-SD higher BACH1 score", ha="center", fontsize=8)
+    figure.savefig(output_dir / "OAK_POPLAR_trial_specific_interaction_forest.pdf", dpi=300, bbox_inches="tight")
+    figure.savefig(output_dir / "OAK_POPLAR_trial_specific_interaction_forest.png", dpi=300, bbox_inches="tight")
+    plt.close(figure)
+
+
 def main() -> None:
     args = parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
@@ -209,11 +298,30 @@ def main() -> None:
     oak, oak_audit = build_study(args.oak_expression, args.oak_clinical, "OAK", args)
     scores = pd.concat([poplar, oak], ignore_index=True)
     scores.to_csv(args.out / "OAK_POPLAR_patient_scores.csv", index=False)
-    results = {"PFS": fit_cox(scores, "pfs_time", "pfs_event"), "OS": fit_cox(scores, "os_time", "os_event"), "response": fit_response(scores)}
+    results = {
+        "PFS": fit_cox(scores, "pfs_time", "pfs_event"),
+        "OS": fit_cox(scores, "os_time", "os_event"),
+        "response": fit_response(scores),
+        "trial_stratified_sensitivity": {
+            "PFS": fit_trial_stratified_cox(scores, "pfs_time", "pfs_event"),
+            "OS": fit_trial_stratified_cox(scores, "os_time", "os_event"),
+        },
+        "trial_specific_interactions": {
+            "PFS": {
+                trial: fit_cox(scores[scores["trial"].eq(trial)], "pfs_time", "pfs_event")
+                for trial in ("POPLAR", "OAK")
+            },
+            "OS": {
+                trial: fit_cox(scores[scores["trial"].eq(trial)], "os_time", "os_event")
+                for trial in ("POPLAR", "OAK")
+            },
+        },
+    }
     with (args.out / "OAK_POPLAR_interaction_results.json").open("w", encoding="utf-8") as handle:
         json.dump(results, handle, indent=2)
+    write_interaction_forest(results, args.out)
     with (args.out / "OAK_POPLAR_data_audit.json").open("w", encoding="utf-8") as handle:
-        json.dump({"score_definition": "81-gene de-overlapped DoRothEA BACH1 weighted mean-z", "poplar": poplar_audit, "oak": oak_audit, "treatment_reference": TREATMENT_REFERENCE, "treatment_exposed": TREATMENT_EXPOSED, "score_standardization": "within_trial_1SD", "model": "endpoint ~ score + treatment + score:treatment + trial + histology", "interaction_is_primary_estimand": True, "cox_complete_case_rule": True, "outcome_informed_imputation": False, "ph_check": "Schoenfeld residual diagnostics; time-varying interaction only as sensitivity if interaction PH is violated"}, handle, indent=2)
+        json.dump({"score_definition": "81-gene de-overlapped DoRothEA BACH1 weighted mean-z", "poplar": poplar_audit, "oak": oak_audit, "treatment_reference": TREATMENT_REFERENCE, "treatment_exposed": TREATMENT_EXPOSED, "interaction_interpretation": "HR<1 indicates relatively greater atezolizumab benefit per 1-SD higher score; HR>1 indicates relatively less benefit", "score_standardization": "within_trial_1SD", "primary_model": "endpoint ~ score + treatment + score:treatment + trial + histology", "trial_stratified_sensitivity": "endpoint ~ score + treatment + score:treatment + histology, with baseline hazard stratified by trial", "interaction_is_primary_estimand": True, "cox_complete_case_rule": True, "outcome_informed_imputation": False, "ph_check": "Schoenfeld residual diagnostics; time-varying interaction only as sensitivity if interaction PH is violated"}, handle, indent=2)
     print(json.dumps(results, indent=2))
 
 
