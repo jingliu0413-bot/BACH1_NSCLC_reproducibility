@@ -31,4 +31,9 @@ has been added to the manuscript. The request draft and frozen model plan are:
 Once the EGA files are approved and downloaded, run
 `scripts/run_oak_poplar_ici_interaction.py` with explicit column mappings.
 The primary estimand is the score-by-atezolizumab interaction for PFS and OS,
-with response as a secondary endpoint.
+with response as a secondary endpoint. Treatment coding is fixed as
+chemotherapy=0 and atezolizumab=1, and the score enters models after
+within-trial 1-SD standardization. Primary Cox fits use complete cases without
+outcome-informed imputation, report Schoenfeld-residual PH diagnostics, and
+only add a time-varying interaction as a sensitivity analysis if the PH check
+indicates clear non-proportionality.
