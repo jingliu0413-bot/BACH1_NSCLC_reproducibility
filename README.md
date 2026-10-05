@@ -1,13 +1,13 @@
 # BACH1 regulatory-context analysis in NSCLC
 
-This repository contains the reproducible analysis code, environment files, documentation and lightweight source tables for the NSCLC BACH1 manuscript. The current code release matches the manuscript submission version prepared on 2026-09-11.
+This repository contains the reproducible analysis code, environment files, documentation and lightweight source tables for the NSCLC BACH1 manuscript. The current code release matches the spatially extended manuscript submission package prepared on 2026-10-05.
 
 ## Analysis Scope
 
 - GSE131907 scRNA-seq: lung tumour and adjacent lung cells.
 - GSE274934 scRNA-seq: nine tumour GEX samples.
 - GSE274934 scATAC-seq: five author-filtered tumour samples.
-- E-MTAB-13530 spatial transcriptomics: 40 Visium sections, including eight tumour-adjacent patient pairs.
+- GSE292299 spatial transcriptomics: four NSCLC tissue sections used for independent spatial replication.
 - TCGA-LUAD and TCGA-LUSC: bulk primary tumour score-association replication.
 
 The primary single-cell analysis uses a 13,694-cell malignant epithelial set from 16 patients. The pySCENIC sensitivity analysis uses a 4,906-cell restricted CNV-consensus set and summarizes BACH1 target recurrence across seeds 777-781. scATAC-seq is used as tumour-tissue proximal accessible-motif context, not as proof of direct BACH1 binding.
@@ -16,7 +16,7 @@ The primary single-cell analysis uses a 13,694-cell malignant epithelial set fro
 
 - `scripts/`: download, preprocessing, analysis, robustness, plotting and supplementary-table preparation scripts.
 - `environment/`: pinned analysis and pySCENIC environments.
-- `source_data/`: lightweight source tables; `source_data/manuscript_submission_20260911/` contains the current manuscript submission tables.
+- `source_data/`: lightweight source tables; `source_data/manuscript_submission_20260911/` contains the manuscript source tables and spatial state-de-overlap audit tables.
 - `resources/`: instructions and checksums for external resources; large third-party databases are downloaded locally and not committed.
 - `docs/`: workflow and data/resource manifests.
 
@@ -107,9 +107,11 @@ python scripts/compare_pyscenic_seed_stability.py \
 
 python scripts/run_bach1_atac_motif_support_ucsc_targeted.py --query-mode bed
 python scripts/plot_supplementary_figure5_scatac_target_window_context.py
-python scripts/run_spatial_revision_statistics.py
-python scripts/run_spatial_bach1_nod_threshold_lopo_sensitivity.py
-python scripts/score_spatial_stable_bach1_regulon.py
+python scripts/run_spatial_external_score_feasibility.py
+python scripts/run_spatial_state_context_analysis.py
+python scripts/run_spatial_state_deoverlap_sensitivity.py
+python scripts/run_spatial_state_pc_block_null.py
+python scripts/plot_spatial_extension_draft.py
 python scripts/replot_figure4_pyscenic_from_source_data.py
 python scripts/plot_bach1_story_4figures_10kb.py
 python scripts/plot_cnv_supplement_figure_s1.py
@@ -126,7 +128,8 @@ Detailed inputs, outputs and fixed analysis definitions are listed in `docs/WORK
 - TCGA-LUAD/LUSC provides bulk tumour replication of the score association.
 - pySCENIC provides seed-sensitive recurrent candidate prioritisation, with five-seed recurrence summarized independently from the seed-777 visualization.
 - scATAC-seq provides tumour-tissue accessible-motif support for candidate prioritisation.
-- Spatial/NOD analyses are tissue-context sensitivity analyses and remain supplementary.
+- Independent spatial transcriptomics reproduces positive BACH1-score/hypoxia covariance across four tissue sections, with attenuation after epithelial-state adjustment.
+- Spatial block-null and state-de-overlap analyses are retained as reproducibility checks for the spatial extension; the earlier exploratory NOD analysis is not part of the submission package.
 
 ## License
 

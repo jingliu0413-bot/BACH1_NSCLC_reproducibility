@@ -1,0 +1,5 @@
+state,n_original_genes,n_removed_due_to_bach1_or_hypoxia_overlap,removed_genes,n_retained_genes,deoverlap_gene_pool
+Stress_AP1,22,1,DST,21,272
+Epithelial_core,7,0,,7,272
+AT2_like,8,0,,8,272
+Ciliated,6,0,,6,272

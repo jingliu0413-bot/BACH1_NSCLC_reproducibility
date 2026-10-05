@@ -1,0 +1,25 @@
+sample,signature,n_targets,n_present,score_version
+NSCLC_P5,DOROTHEA_BACH1,81,79,canonical de-overlapped score
+NSCLC_P5,HALLMARK_HYPOXIA,191,187,canonical de-overlapped score
+NSCLC_P5,Stress_AP1,21,19,state signature after full BACH1+hypoxia de-overlap
+NSCLC_P5,Epithelial_core,7,6,state signature after full BACH1+hypoxia de-overlap
+NSCLC_P5,AT2_like,8,7,state signature after full BACH1+hypoxia de-overlap
+NSCLC_P5,Ciliated,6,6,state signature after full BACH1+hypoxia de-overlap
+NSCLC_P8,DOROTHEA_BACH1,81,79,canonical de-overlapped score
+NSCLC_P8,HALLMARK_HYPOXIA,191,187,canonical de-overlapped score
+NSCLC_P8,Stress_AP1,21,19,state signature after full BACH1+hypoxia de-overlap
+NSCLC_P8,Epithelial_core,7,6,state signature after full BACH1+hypoxia de-overlap
+NSCLC_P8,AT2_like,8,7,state signature after full BACH1+hypoxia de-overlap
+NSCLC_P8,Ciliated,6,6,state signature after full BACH1+hypoxia de-overlap
+NSCLC_P12,DOROTHEA_BACH1,81,79,canonical de-overlapped score
+NSCLC_P12,HALLMARK_HYPOXIA,191,187,canonical de-overlapped score
+NSCLC_P12,Stress_AP1,21,19,state signature after full BACH1+hypoxia de-overlap
+NSCLC_P12,Epithelial_core,7,6,state signature after full BACH1+hypoxia de-overlap
+NSCLC_P12,AT2_like,8,7,state signature after full BACH1+hypoxia de-overlap
+NSCLC_P12,Ciliated,6,6,state signature after full BACH1+hypoxia de-overlap
+NSCLC_P15,DOROTHEA_BACH1,81,79,canonical de-overlapped score
+NSCLC_P15,HALLMARK_HYPOXIA,191,187,canonical de-overlapped score
+NSCLC_P15,Stress_AP1,21,19,state signature after full BACH1+hypoxia de-overlap
+NSCLC_P15,Epithelial_core,7,6,state signature after full BACH1+hypoxia de-overlap
+NSCLC_P15,AT2_like,8,7,state signature after full BACH1+hypoxia de-overlap
+NSCLC_P15,Ciliated,6,6,state signature after full BACH1+hypoxia de-overlap

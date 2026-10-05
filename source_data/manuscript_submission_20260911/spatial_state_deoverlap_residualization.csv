@@ -1,0 +1,9 @@
+sample,comparison,n_spots,raw_rho,original_state_pc_residual_rho,deoverlap_state_pc_residual_rho,n_state_pcs,state_pc_source,deoverlap_pool_size,normalization_target_sum
+NSCLC_P12,DoRothEA_vs_hypoxia,2131,0.8398691232958834,0.13907475020315663,0.1412488937567923,3,Stress_AP1;Epithelial_core;AT2_like;Ciliated,272,10000.0
+NSCLC_P15,DoRothEA_vs_hypoxia,13002,0.6257430231908425,0.40140248820391305,0.4083178972063375,3,Stress_AP1;Epithelial_core;AT2_like;Ciliated,272,10000.0
+NSCLC_P5,DoRothEA_vs_hypoxia,5388,0.6865929370315373,0.13488285397227673,0.13911764384317948,3,Stress_AP1;Epithelial_core;AT2_like;Ciliated,272,10000.0
+NSCLC_P8,DoRothEA_vs_hypoxia,5218,0.7140323460580447,0.05720563703399234,0.05989380620070329,3,Stress_AP1;Epithelial_core;AT2_like;Ciliated,272,10000.0
+NSCLC_P12,Stress_AP1_vs_hypoxia,2131,0.7710931110591079,0.29300069107921034,0.2849320105209311,2,Epithelial_core;AT2_like;Ciliated,272,10000.0
+NSCLC_P15,Stress_AP1_vs_hypoxia,13002,0.4077080742168045,0.371698062722611,0.35312823138918265,2,Epithelial_core;AT2_like;Ciliated,272,10000.0
+NSCLC_P5,Stress_AP1_vs_hypoxia,5388,0.6357024972996237,0.2717363959381944,0.2776618938926275,2,Epithelial_core;AT2_like;Ciliated,272,10000.0
+NSCLC_P8,Stress_AP1_vs_hypoxia,5218,0.6734340269395153,0.17446884759104136,0.18004512849631538,2,Epithelial_core;AT2_like;Ciliated,272,10000.0
