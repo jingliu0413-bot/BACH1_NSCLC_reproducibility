@@ -61,7 +61,7 @@ def add_top_letter(fig, ax, letter: str) -> None:
     """Place top-row labels on one shared figure-level baseline."""
     fig.text(
         ax.get_position().x0 - 0.018,
-        0.985,
+        0.915,
         letter,
         fontsize=11,
         fontweight="bold",
