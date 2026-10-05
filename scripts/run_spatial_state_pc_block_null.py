@@ -88,7 +88,7 @@ def block_permutation(
     block_ids: np.ndarray,
     rng: np.random.Generator,
     n_permutations: int = N_PERMUTATIONS,
-) -> tuple[float, float, float, float]:
+) -> tuple[float, float, float, float, float, float]:
     observed = spatial_core.bivariate_moran(x, y, weights)
     null = np.empty(n_permutations, dtype=float)
     groups = [np.flatnonzero(block_ids == block) for block in pd.unique(block_ids)]
@@ -99,7 +99,14 @@ def block_permutation(
                 y_perm[idx] = y_perm[rng.permutation(idx)]
         null[i] = spatial_core.bivariate_moran(x, y_perm, weights)
     p_positive = (1 + np.sum(null >= observed)) / (n_permutations + 1)
-    return float(observed), float(p_positive), float(np.nanmean(null)), float(np.nanstd(null))
+    return (
+        float(observed),
+        float(p_positive),
+        float(np.nanmean(null)),
+        float(np.nanstd(null)),
+        float(np.nanquantile(null, 0.025)),
+        float(np.nanquantile(null, 0.975)),
+    )
 
 
 def main() -> None:
@@ -150,7 +157,7 @@ def main() -> None:
                     + (group["array_col"] // block_size).astype(str)
                 ).to_numpy()
                 rng = np.random.default_rng(RANDOM_SEED)
-                moran, p_value, null_mean, null_sd = block_permutation(
+                moran, p_value, null_mean, null_sd, null_q025, null_q975 = block_permutation(
                     x, y, weights, block_ids, rng
                 )
                 rows.append(
@@ -163,6 +170,8 @@ def main() -> None:
                         "block_permutation_p_positive": p_value,
                         "block_null_mean": null_mean,
                         "block_null_sd": null_sd,
+                        "block_null_q025": null_q025,
+                        "block_null_q975": null_q975,
                         "block_size_array_coordinates": block_size,
                         "n_permutations": N_PERMUTATIONS,
                         "random_seed": RANDOM_SEED,
@@ -184,7 +193,7 @@ def main() -> None:
                 ).to_numpy()
                 sensitivity_seed = RANDOM_SEED + block_size
                 rng = np.random.default_rng(sensitivity_seed)
-                moran, p_value, null_mean, null_sd = block_permutation(
+                moran, p_value, null_mean, null_sd, null_q025, null_q975 = block_permutation(
                     x, y, weights, block_ids, rng
                 )
                 sensitivity_rows.append(
@@ -196,6 +205,8 @@ def main() -> None:
                         "block_permutation_p_positive": p_value,
                         "block_null_mean": null_mean,
                         "block_null_sd": null_sd,
+                        "block_null_q025": null_q025,
+                        "block_null_q975": null_q975,
                         "block_size_array_coordinates": block_size,
                         "n_permutations": N_PERMUTATIONS,
                         "random_seed": sensitivity_seed,
