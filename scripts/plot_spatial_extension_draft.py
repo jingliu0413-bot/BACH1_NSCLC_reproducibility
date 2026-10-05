@@ -41,19 +41,32 @@ def find_spatial_files(sample: str) -> dict[str, Path]:
     return {"positions": positions, "scalefactors": scalefactors, "hires": hires, "lowres": lowres}
 
 
-def add_letter(ax, letter: str) -> None:
+def add_letter(ax, letter: str, *, y_offset: float = 14) -> None:
     # Use a fixed physical offset rather than an axes-fraction offset so that
     # labels remain equally clear of panels with different widths and heights.
     ax.annotate(
         letter,
         xy=(0, 1),
         xycoords="axes fraction",
-        xytext=(-18, 14),
+        xytext=(-18, y_offset),
         textcoords="offset points",
         fontsize=11,
         fontweight="bold",
         ha="right",
         va="bottom",
+    )
+
+
+def add_top_letter(fig, ax, letter: str) -> None:
+    """Place top-row labels on one shared figure-level baseline."""
+    fig.text(
+        ax.get_position().x0 - 0.018,
+        0.985,
+        letter,
+        fontsize=11,
+        fontweight="bold",
+        ha="right",
+        va="top",
     )
 
 
@@ -219,7 +232,6 @@ def main() -> None:
 
     top_grid = grid[0, :].subgridspec(1, 2, width_ratios=[0.56, 1.44], wspace=0.24)
     ax_a = fig.add_subplot(top_grid[0, 0])
-    add_letter(ax_a, "a")
     ax_a.axis("off")
     # The panel mixes scatter points with axes-fraction-like text coordinates;
     # fix the data limits so tight bounding-box export cannot expand the canvas.
@@ -245,7 +257,8 @@ def main() -> None:
 
     map_grid = top_grid[0, 1].subgridspec(1, 3, wspace=0.04)
     map_axes = [fig.add_subplot(map_grid[0, i]) for i in range(3)]
-    add_letter(map_axes[0], "b")
+    add_top_letter(fig, ax_a, "a")
+    add_top_letter(fig, map_axes[0], "b")
     representative_maps(fig, map_axes, spots)
     map_axes[1].text(
         0.5,
