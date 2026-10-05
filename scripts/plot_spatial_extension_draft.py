@@ -42,17 +42,18 @@ def find_spatial_files(sample: str) -> dict[str, Path]:
 
 
 def add_letter(ax, letter: str) -> None:
-    # Keep panel labels outside the plotting region with a consistent left edge.
-    # The extra clearance is important for the map titles and the two-line plot titles.
-    ax.text(
-        -0.15,
-        1.16,
+    # Use a fixed physical offset rather than an axes-fraction offset so that
+    # labels remain equally clear of panels with different widths and heights.
+    ax.annotate(
         letter,
-        transform=ax.transAxes,
+        xy=(0, 1),
+        xycoords="axes fraction",
+        xytext=(-18, 14),
+        textcoords="offset points",
         fontsize=11,
         fontweight="bold",
-        ha="left",
-        va="top",
+        ha="right",
+        va="bottom",
     )
 
 
