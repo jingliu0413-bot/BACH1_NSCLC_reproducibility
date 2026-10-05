@@ -42,7 +42,18 @@ def find_spatial_files(sample: str) -> dict[str, Path]:
 
 
 def add_letter(ax, letter: str) -> None:
-    ax.text(-0.08, 1.10, letter, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
+    # Keep panel labels outside the plotting region with a consistent left edge.
+    # The extra clearance is important for the map titles and the two-line plot titles.
+    ax.text(
+        -0.15,
+        1.16,
+        letter,
+        transform=ax.transAxes,
+        fontsize=11,
+        fontweight="bold",
+        ha="left",
+        va="top",
+    )
 
 
 def representative_maps(fig, axes, spots: pd.DataFrame) -> None:
