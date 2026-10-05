@@ -15,12 +15,13 @@ score is then standardized within trial to one standard deviation before it
 enters any model, so interaction effects are interpreted per within-trial 1-SD
 higher score. Record target coverage and missing genes before fitting models.
 
-Treatment coding is fixed in advance: chemotherapy is the reference arm
-(`treatment=0`) and atezolizumab is the exposed arm (`treatment=1`).
-With chemotherapy coded as the reference arm, an interaction hazard ratio
-below 1 indicates that a higher BACH1 score is associated with relatively
-greater benefit from atezolizumab versus chemotherapy; an interaction hazard
-ratio above 1 indicates relatively less benefit.
+Treatment coding is fixed in advance: docetaxel (chemotherapy) is the
+reference arm (`treatment=0`) and atezolizumab is the exposed arm
+(`treatment=1`). With docetaxel coded as the reference arm, an interaction
+hazard ratio below 1 indicates that the relative hazard for atezolizumab
+versus docetaxel decreases as the BACH1 score increases, consistent with
+greater relative benefit; an interaction hazard ratio above 1 indicates the
+opposite direction.
 
 ## Primary model
 

@@ -19,7 +19,7 @@ variables where available.
 
 ## Proposed request text
 
-> To evaluate whether a predefined, externally derived DoRothEA BACH1 transcriptional score modifies clinical benefit from atezolizumab versus chemotherapy in randomized OAK and POPLAR NSCLC cohorts. The score definition will be frozen before outcome analysis and will not be optimized using clinical outcomes. Primary analyses will test treatment-by-score interaction for PFS and OS, with response as a secondary endpoint.
+> To evaluate whether a predefined, externally derived DoRothEA BACH1 transcriptional score modifies clinical benefit from atezolizumab versus docetaxel (chemotherapy) in randomized OAK and POPLAR NSCLC cohorts. The score definition will be frozen before outcome analysis and will not be optimized using clinical outcomes. Primary analyses will test treatment-by-score interaction for PFS and OS, with response as a secondary endpoint.
 
 The score is the de-overlapped 81-target DoRothEA BACH1 score already used in
 the NSCLC manuscript, with ALDOA, HMOX1 and IL6 excluded. Treatment coding is

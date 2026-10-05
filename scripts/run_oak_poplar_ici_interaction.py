@@ -29,6 +29,7 @@ TARGETS = ROOT / "source_data" / "manuscript_submission_20260911" / "external_ba
 OVERLAP = {"ALDOA", "HMOX1", "IL6"}
 SIGNATURE = "DOROTHEA_BACH1_ABC_TF_ACTIVITY"
 TREATMENT_REFERENCE = "chemotherapy"
+TREATMENT_REFERENCE_LABEL = "docetaxel (chemotherapy)"
 TREATMENT_EXPOSED = "atezolizumab"
 
 
@@ -194,7 +195,7 @@ def interaction_summary(fit: object, names: list[str]) -> dict:
         "interaction_ci_lower": float(np.exp(confidence[index, 0])),
         "interaction_ci_upper": float(np.exp(confidence[index, 1])),
         "interaction_p": float(fit.pvalues[index]),
-        "interpretation": "HR<1 indicates relatively greater atezolizumab benefit per 1-SD higher score; HR>1 indicates relatively less benefit",
+        "interpretation": "An interaction HR<1 indicates that the relative hazard for atezolizumab versus docetaxel decreases as the BACH1 score increases, consistent with greater relative benefit; HR>1 indicates the opposite direction",
     }
 
 
@@ -321,7 +322,7 @@ def main() -> None:
         json.dump(results, handle, indent=2)
     write_interaction_forest(results, args.out)
     with (args.out / "OAK_POPLAR_data_audit.json").open("w", encoding="utf-8") as handle:
-        json.dump({"score_definition": "81-gene de-overlapped DoRothEA BACH1 weighted mean-z", "poplar": poplar_audit, "oak": oak_audit, "treatment_reference": TREATMENT_REFERENCE, "treatment_exposed": TREATMENT_EXPOSED, "interaction_interpretation": "HR<1 indicates relatively greater atezolizumab benefit per 1-SD higher score; HR>1 indicates relatively less benefit", "score_standardization": "within_trial_1SD", "primary_model": "endpoint ~ score + treatment + score:treatment + trial + histology", "trial_stratified_sensitivity": "endpoint ~ score + treatment + score:treatment + histology, with baseline hazard stratified by trial", "interaction_is_primary_estimand": True, "cox_complete_case_rule": True, "outcome_informed_imputation": False, "ph_check": "Schoenfeld residual diagnostics; time-varying interaction only as sensitivity if interaction PH is violated"}, handle, indent=2)
+        json.dump({"score_definition": "81-gene de-overlapped DoRothEA BACH1 weighted mean-z", "poplar": poplar_audit, "oak": oak_audit, "treatment_reference": TREATMENT_REFERENCE, "treatment_reference_label": TREATMENT_REFERENCE_LABEL, "treatment_exposed": TREATMENT_EXPOSED, "interaction_interpretation": "An interaction HR<1 indicates that the relative hazard for atezolizumab versus docetaxel decreases as the BACH1 score increases, consistent with greater relative benefit; HR>1 indicates the opposite direction", "score_standardization": "within_trial_1SD", "primary_model": "endpoint ~ score + treatment + score:treatment + trial + histology", "trial_stratified_sensitivity": "endpoint ~ score + treatment + score:treatment + histology, with baseline hazard stratified by trial", "interaction_is_primary_estimand": True, "cox_complete_case_rule": True, "outcome_informed_imputation": False, "ph_check": "Schoenfeld residual diagnostics; time-varying interaction only as sensitivity if interaction PH is violated"}, handle, indent=2)
     print(json.dumps(results, indent=2))
 
 
