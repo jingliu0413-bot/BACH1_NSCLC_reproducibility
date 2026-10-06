@@ -191,7 +191,7 @@ def draw_workflow(ax: plt.Axes) -> None:
     group_for = {i: group for group, spec in groups.items() for i in spec["indices"]}
     margin, in_group_gap, between_group_gap = 0.005, 0.018, 0.04
     box_width = (1 - 2 * margin - 4 * in_group_gap - between_group_gap) / 6
-    y0, box_height = 0.17, 0.50
+    y0, box_height = 0.04, 0.50
     top = y0 + box_height
     xs, x = [], margin
     for i in range(6):
@@ -256,7 +256,9 @@ def plot_figure1() -> None:
         4,
         height_ratios=[0.48, 1.10, 1.10],
         width_ratios=[1.0, 1.0, 1.06, 1.06],
-        hspace=0.31,
+        # Leave enough room for the upper-row x labels before the lower-row
+        # titles; the same physical gap is used between all three rows.
+        hspace=0.48,
         wspace=0.38,
     )
 
