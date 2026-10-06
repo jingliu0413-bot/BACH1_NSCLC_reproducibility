@@ -17,7 +17,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch, Polygon, Rectangle
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Polygon
 from matplotlib.lines import Line2D
 from matplotlib import colors as mpl_colors
 from matplotlib import ticker as mpl_ticker
@@ -175,44 +175,63 @@ def draw_workflow(ax: plt.Axes) -> None:
     ax.axis("off")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
-    ax.text(0.0, 0.98, "Study design", ha="left", va="top", fontsize=9, fontweight="semibold")
-    ax.add_patch(Rectangle((0.025, 0.25), 0.635, 0.60, facecolor="#F7F9FC", edgecolor="none", zorder=0))
-    ax.add_patch(Rectangle((0.675, 0.25), 0.300, 0.60, facecolor="#F4FAF8", edgecolor="none", zorder=0))
-    ax.text(0.045, 0.83, "Discovery · scRNA-seq", ha="left", va="center", fontsize=7.1, color="#56616D", fontweight="semibold")
-    ax.text(0.695, 0.83, "Validation · bulk / spatial", ha="left", va="center", fontsize=7.1, color="#56616D", fontweight="semibold")
+    ax.text(0.0, 1.03, "Study design", ha="left", va="bottom", fontsize=9, fontweight="semibold")
     boxes = [
-        (0.045, 0.33, 0.125, 0.40, "NSCLC\nscRNA atlas", "GSE131907 + GSE274934\n176,294 cells", "#E8EEF7"),
-        (0.195, 0.33, 0.125, 0.40, "Malignant\nepithelium", "13,694 cells\n16 patients", "#F6E0DE"),
-        (0.345, 0.33, 0.125, 0.40, "BACH1–hypoxia\ncovariance", "DoRothEA score +\nHallmark hypoxia", "#EFEAF4"),
-        (0.495, 0.33, 0.125, 0.40, "Epithelial-state\narchitecture", "state programmes +\nresidualization", "#F3E8D1"),
-        (0.705, 0.33, 0.125, 0.40, "Pan-transcription\nfactor / TCGA", "267 TFs · 1,017\nLUAD/LUSC tumours", "#EAF2E5"),
-        (0.855, 0.33, 0.125, 0.40, "Independent spatial\nreplication", "GSE292299 · 4\nspatial sections", "#E3F0F0"),
+        ("NSCLC\nscRNA atlas", "GSE131907 + GSE274934\n176,294 cells"),
+        ("Malignant\nepithelium", "13,694 cells\n16 patients"),
+        ("BACH1–hypoxia\ncovariance", "DoRothEA score +\nHallmark hypoxia"),
+        ("Epithelial-state\narchitecture", "State programmes +\nresidualization"),
+        ("Pan-transcription\nfactor / TCGA", "TCGA-LUAD/LUSC\nn = 1,017"),
+        ("Independent spatial\nreplication", "GSE292299\n4 spatial sections"),
     ]
-    for i, (x, y, w, h, text, detail, color) in enumerate(boxes, start=1):
+    groups = {
+        "Discovery (scRNA-seq)": {"indices": range(0, 4), "face": "#E9EFF6", "edge": "#7A8CA5", "dark": "#3E5C84"},
+        "Validation (bulk / spatial)": {"indices": range(4, 6), "face": "#E8F2EC", "edge": "#6E9983", "dark": "#2F6B50"},
+    }
+    group_for = {i: group for group, spec in groups.items() for i in spec["indices"]}
+    margin, in_group_gap, between_group_gap = 0.005, 0.018, 0.04
+    box_width = (1 - 2 * margin - 4 * in_group_gap - between_group_gap) / 6
+    y0, box_height = 0.17, 0.50
+    top = y0 + box_height
+    xs, x = [], margin
+    for i in range(6):
+        xs.append(x)
+        x += box_width + (between_group_gap if i == 3 else in_group_gap)
+
+    for i, (title, detail) in enumerate(boxes, start=1):
+        spec = groups[group_for[i - 1]]
+        x = xs[i - 1]
         ax.add_patch(
             FancyBboxPatch(
-                (x, y),
-                w,
-                h,
+                (x, y0),
+                box_width,
+                box_height,
                 boxstyle="round,pad=0.010,rounding_size=0.010",
-                fc=color,
-                ec="#68727C",
-                lw=0.65,
+                fc=spec["face"],
+                ec=spec["edge"],
+                lw=0.55,
                 zorder=2,
             )
         )
-        ax.add_patch(Circle((x + 0.018, y + h - 0.040), 0.014, facecolor="#FFFFFF", edgecolor="#68727C", lw=0.55, zorder=3))
-        ax.text(x + 0.018, y + h - 0.040, str(i), ha="center", va="center", fontsize=6.2, color="#3F4850", zorder=4)
-        ax.text(x + w / 2, y + 0.235, text, ha="center", va="center", fontsize=7.0, linespacing=0.94, zorder=3)
-        ax.text(x + w / 2, y + 0.095, detail, ha="center", va="center", fontsize=5.4, color="#56616D", linespacing=0.92, zorder=3)
+        marker_x, marker_y = x + 0.018, top
+        ax.scatter([marker_x], [marker_y], s=62, color=spec["dark"], edgecolor="white", linewidth=0.7, transform=ax.transAxes, zorder=4)
+        ax.text(marker_x, marker_y, str(i), ha="center", va="center", fontsize=5.8, fontweight="bold", color="white", transform=ax.transAxes, zorder=5)
+        ax.text(x + box_width / 2, y0 + 0.31, title, ha="center", va="center", fontsize=6.9, fontweight="bold", linespacing=1.15, zorder=3)
+        ax.text(x + box_width / 2, y0 + 0.105, detail, ha="center", va="center", fontsize=5.6, color="#4A4A4A", linespacing=1.25, zorder=3)
     for start, end in [
-        ((0.172, 0.53), (0.190, 0.53)),
-        ((0.322, 0.53), (0.340, 0.53)),
-        ((0.472, 0.53), (0.490, 0.53)),
-        ((0.622, 0.53), (0.690, 0.53)),
-        ((0.832, 0.53), (0.848, 0.53)),
+        (xs[0] + box_width + 0.005, xs[1] - 0.005),
+        (xs[1] + box_width + 0.005, xs[2] - 0.005),
+        (xs[2] + box_width + 0.005, xs[3] - 0.005),
+        (xs[3] + box_width + 0.005, xs[4] - 0.005),
+        (xs[4] + box_width + 0.005, xs[5] - 0.005),
     ]:
-        ax.add_patch(FancyArrowPatch(start, end, arrowstyle="-|>", mutation_scale=11, lw=0.9, color="#68727C", zorder=1))
+        ax.add_patch(FancyArrowPatch((start, y0 + box_height / 2), (end, y0 + box_height / 2), arrowstyle="-|>", mutation_scale=10, lw=0.75, color="#5A5A5A", shrinkA=0, shrinkB=0, zorder=3))
+    for label, spec in groups.items():
+        first, last = min(spec["indices"]), max(spec["indices"])
+        xa, xb = xs[first], xs[last] + box_width
+        bracket_y = top + 0.085
+        ax.plot([xa, xa, xb, xb], [bracket_y - 0.025, bracket_y, bracket_y, bracket_y - 0.025], color=spec["edge"], lw=0.6, solid_capstyle="butt", zorder=1)
+        ax.text((xa + xb) / 2, bracket_y + 0.035, label, ha="center", va="bottom", fontsize=6.5, fontweight="bold", color=spec["dark"])
 
 
 def plot_umap_categorical(ax: plt.Axes, df: pd.DataFrame, column: str, palette: dict[str, str], point_size: float, alpha: float) -> None:
@@ -243,7 +262,9 @@ def plot_figure1() -> None:
 
     ax = fig.add_subplot(gs[0, :])
     draw_workflow(ax)
-    panel_label(ax, "a", x=0.0)
+    # The workflow spans the full figure width, so compensate for the wider
+    # axes when aligning its label with the half-width panels below.
+    panel_label(ax, "a", x=-0.035)
 
     ax = fig.add_subplot(gs[1, :2])
     plot_umap_categorical(ax, atlas, "major_celltype_auto", CELLTYPE_COLORS, point_size=0.45, alpha=0.68)
