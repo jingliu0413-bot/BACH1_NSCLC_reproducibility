@@ -134,7 +134,7 @@ def main() -> None:
         ax.text(
             1.015,
             yi,
-            f"median Δ={med:.3f} · Holm-adjusted {format_p(float(tests.loc[score, 'wilcoxon_holm_p']))}",
+            f"Δmed={med:.3f}; Holm {format_p(float(tests.loc[score, 'wilcoxon_holm_p']))}",
             ha="left",
             va="center",
             fontsize=6.5,
@@ -149,7 +149,7 @@ def main() -> None:
     for tick, score in zip(ax.get_yticklabels(), label_scores):
         tick.set_color("#2F5C84" if score.startswith("DOROTHEA") else "#73777D")
         tick.set_fontweight("bold" if score.startswith("DOROTHEA") else "normal")
-    ax.text(0.50, 1.015, "colour = dataset; black dot = patient median", transform=ax.transAxes, ha="left", va="bottom", fontsize=6.2, color="#666666")
+    ax.text(0.50, 1.015, "colour = dataset; black dot = median across patients", transform=ax.transAxes, ha="left", va="bottom", fontsize=6.2, color="#666666")
     ax.text(1.015, 1.015, "n=15 patients except Klenja (n=14)", transform=ax.transAxes, ha="left", va="bottom", fontsize=6.2, color="#666666")
     panel_label(ax, "b", x=-0.06)
 
@@ -175,7 +175,7 @@ def main() -> None:
     )
     ax.set_xlabel("DoRothEA BACH1 mean-z\nshared genes excluded")
     ax.set_ylabel("Hallmark hypoxia mean-z\nshared genes excluded")
-    ax.legend(frameon=False, fontsize=6.5, loc="lower right")
+    ax.legend(frameon=False, fontsize=6.5, loc="upper right", bbox_to_anchor=(1.0, 0.98))
     ax.set_title("Patient-level BACH1–hypoxia covariance", loc="left", fontsize=8.5, pad=2)
     panel_label(ax, "c")
 
@@ -183,11 +183,13 @@ def main() -> None:
     order = ["original", "both_signatures_without_shared"]
     labels = ["Original scores", "Shared genes excluded"]
     rows = lopo.set_index("comparison").loc[order].reset_index()
+    full_rho = cor.set_index("comparison")["spearman_rho"]
+    rows["full_rho"] = rows["comparison"].map(full_rho)
     y = np.arange(len(rows))
     ax.errorbar(
-        rows["median_rho"],
+        rows["full_rho"],
         y,
-        xerr=[rows["median_rho"] - rows["min_rho"], rows["max_rho"] - rows["median_rho"]],
+        xerr=[rows["full_rho"] - rows["min_rho"], rows["max_rho"] - rows["full_rho"]],
         fmt="o",
         color="#333333",
         ecolor="#777777",
@@ -199,7 +201,15 @@ def main() -> None:
     ax.set_xlim(0.82, 1.01)
     ax.invert_yaxis()
     for yi, row in zip(y, rows.itertuples(index=False)):
-        ax.text(float(row.max_rho) + 0.004, yi, f"{row.median_rho:.3f} [{row.min_rho:.3f}, {row.max_rho:.3f}]", va="center", ha="left", fontsize=6.1, color="#4A4A4A")
+        ax.text(
+            0.997,
+            yi,
+            f"ρ={row.full_rho:.3f};\nLOPO range: {row.min_rho:.3f}–{row.max_rho:.3f}",
+            va="center",
+            ha="right",
+            fontsize=5.8,
+            color="#4A4A4A",
+        )
     ax.set_title("Leave-one-patient-out robustness", loc="left", fontsize=8.5, pad=2)
     panel_label(ax, "d", x=-0.08)
 
@@ -207,12 +217,16 @@ def main() -> None:
     ns = null_summary.loc[null_summary["comparison"].eq("deoverlapped_hypoxia")].iloc[0]
     nl = null_long.loc[null_long["comparison"].eq("deoverlapped_hypoxia")]
     ax.hist(nl["rho_random_vs_outcome"], bins=38, color="#BFCAD6", edgecolor="white", linewidth=0.4)
-    ax.axvline(float(ns.observed_rho), color="#D62728", lw=1.4)
-    ax.axvline(float(ns.null_mean_rho), color="#4C78A8", lw=1.0, ls="--")
+    observed_rho = float(ns.observed_rho)
+    null_mean_rho = float(ns.null_mean_rho)
+    ax.axvline(observed_rho, color="#D62728", lw=1.4)
+    ax.axvline(null_mean_rho, color="#4C78A8", lw=1.0, ls="--")
+    ax.text(observed_rho, 0.98, "Observed", transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=6.2, color="#D62728")
+    ax.text(null_mean_rho, 0.98, "Null mean", transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=6.2, color="#4C78A8")
     ax.text(
         0.04,
         0.94,
-        f"observed ρ={float(ns.observed_rho):.2f}\nnull mean ρ={float(ns.null_mean_rho):.2f}\nempirical {format_p(float(ns.empirical_p_greater_equal_observed))}",
+        f"observed ρ={observed_rho:.2f}\nnull mean ρ={null_mean_rho:.2f}\nempirical {format_p(float(ns.empirical_p_greater_equal_observed))}",
         transform=ax.transAxes,
         ha="left",
         va="top",
@@ -222,7 +236,6 @@ def main() -> None:
     ax.set_xlabel("Matched random score vs de-overlapped hypoxia ρ")
     ax.set_ylabel("Permutation count")
     ax.set_title("Matched-gene null benchmark", loc="left", fontsize=8.5, pad=2)
-    ax.text(0.04, 0.04, "Red = observed; blue dashed = null mean", transform=ax.transAxes, ha="left", va="bottom", fontsize=6.1, color="#666666")
     panel_label(ax, "e")
 
     for axis in fig.axes:
