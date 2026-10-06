@@ -32,7 +32,7 @@ SCORE_LABELS = {
     "DOROTHEA_BACH1_ABC_TF_ACTIVITY_NO_HYPOXIA_OVERLAP__mean_z": "DoRothEA mean-z\nshared genes excluded",
     "LITERATURE_LUNG_BACH1_EFFECTOR_ACTIVITY__mean_z": "lung effector mean-z",
     "COLLECTRI_BACH1_TF_ACTIVITY__mean_z": "CollecTRI mean-z",
-    "KLENJA2025_BACH1_INVERSE_ACTIVITY__mean_z": "Klenja inverse mean-z",
+    "KLENJA2025_BACH1_INVERSE_ACTIVITY__mean_z": "Klenja inverse score",
 }
 
 
@@ -83,21 +83,31 @@ def main() -> None:
             "ps.fonttype": 42,
         }
     )
-    fig = plt.figure(figsize=(12.8, 7.2), constrained_layout=True)
-    gs = fig.add_gridspec(2, 3, height_ratios=[1.0, 1.0], width_ratios=[1.0, 1.6, 1.15])
+    fig = plt.figure(figsize=(13.4, 7.4), constrained_layout=True)
+    # Give the central covariance and matched-null panels more visual weight;
+    # keep the score-selection comparison compact and the LOPO panel readable.
+    gs = fig.add_gridspec(2, 12, height_ratios=[0.92, 1.08], wspace=0.75, hspace=0.50)
 
-    ax = fig.add_subplot(gs[0, 0])
+    ax = fig.add_subplot(gs[0, :5])
     p = patient.sort_values(["dataset", "BACH1_detected_fraction"]).reset_index(drop=True)
     x = np.arange(len(p))
     colors = [DATASET_COLORS.get(d, "#777777") for d in p["dataset"]]
     ax.bar(x, p["BACH1_detected_fraction"], color=colors, width=0.72)
-    for xi, n, frac in zip(x, p["n_cells"], p["BACH1_detected_fraction"]):
-        ax.text(xi, frac + 0.012, f"{int(n)}", ha="center", va="bottom", fontsize=5.8, rotation=90, color="#444444")
+    def compact_n(n: int) -> str:
+        return f"{n / 1000:.1f}k" if n >= 1000 else str(int(n))
+
     ax.set_xticks(x)
-    ax.set_xticklabels(p["patient"], rotation=90)
+    ax.set_xticklabels(
+        [f"{pid}\n(n={compact_n(n)})" for pid, n in zip(p["patient"], p["n_cells"])],
+        rotation=45,
+        ha="right",
+        fontsize=6.0,
+        linespacing=1.0,
+    )
     ax.set_ylabel("BACH1-detected fraction")
-    ax.set_xlabel("Patient; numbers show malignant epithelial cells")
+    ax.set_xlabel("Patients ordered within dataset by BACH1-detected fraction", fontsize=7)
     ax.set_ylim(0, max(0.56, float(p["BACH1_detected_fraction"].max()) * 1.18))
+    ax.set_title("Patient-level BACH1 transcript detection", loc="left", fontsize=8.5, pad=2)
     handles = [
         Line2D([0], [0], marker="s", color="none", markerfacecolor=DATASET_COLORS[k], markeredgecolor="none", label=k, markersize=7)
         for k in ["GSE131907", "GSE274934"]
@@ -105,7 +115,7 @@ def main() -> None:
     ax.legend(handles=handles, frameon=False, fontsize=7, loc="upper left")
     panel_label(ax, "a")
 
-    ax = fig.add_subplot(gs[0, 1:])
+    ax = fig.add_subplot(gs[0, 5:])
     y_positions = np.arange(len(SCORE_ORDER))[::-1]
     jitter = {"GSE131907": -0.07, "GSE274934": 0.07}
     for yi, score in zip(y_positions, SCORE_ORDER):
@@ -122,21 +132,28 @@ def main() -> None:
         med = float(tests.loc[score, "median_delta_detected_minus_undetected"])
         ax.scatter([med], [yi], s=22, color="black", zorder=5)
         ax.text(
-            1.05,
+            1.015,
             yi,
-            f"n={int(tests.loc[score, 'n_patients_with_nonzero_delta'])}, med={med:.3f}\nHolm-adjusted {format_p(float(tests.loc[score, 'wilcoxon_holm_p']))}",
+            f"median Δ={med:.3f} · Holm-adjusted {format_p(float(tests.loc[score, 'wilcoxon_holm_p']))}",
             ha="left",
             va="center",
-            fontsize=7,
+            fontsize=6.5,
         )
     ax.axvline(0, color="#333333", lw=0.8)
     ax.set_yticks(y_positions)
     ax.set_yticklabels([SCORE_LABELS[s] for s in SCORE_ORDER])
     ax.set_xlabel("Patient-level delta: BACH1-detected - undetected")
-    ax.set_xlim(-0.25, 1.34)
+    ax.set_xlim(-0.25, 1.30)
+    ax.set_title("External BACH1 score comparison", loc="left", fontsize=8.5, pad=2)
+    label_scores = SCORE_ORDER
+    for tick, score in zip(ax.get_yticklabels(), label_scores):
+        tick.set_color("#2F5C84" if score.startswith("DOROTHEA") else "#73777D")
+        tick.set_fontweight("bold" if score.startswith("DOROTHEA") else "normal")
+    ax.text(0.50, 1.015, "colour = dataset; black dot = patient median", transform=ax.transAxes, ha="left", va="bottom", fontsize=6.2, color="#666666")
+    ax.text(1.015, 1.015, "n=15 patients except Klenja (n=14)", transform=ax.transAxes, ha="left", va="bottom", fontsize=6.2, color="#666666")
     panel_label(ax, "b", x=-0.06)
 
-    ax = fig.add_subplot(gs[1, 0])
+    ax = fig.add_subplot(gs[1, :5])
     xcol = "DOROTHEA_BACH1_ABC_TF_ACTIVITY_NO_HYPOXIA_OVERLAP__mean_z"
     ycol = "HALLMARK_HYPOXIA_NO_DOROTHEA_OVERLAP__mean_z"
     for dataset, ds in patient.groupby("dataset"):
@@ -147,15 +164,24 @@ def main() -> None:
         xs = np.linspace(float(fit[xcol].min()), float(fit[xcol].max()), 100)
         ax.plot(xs, m * xs + b, color="#333333", lw=0.8, alpha=0.8)
     row = cor.loc[cor["comparison"].eq("both_signatures_without_shared")].iloc[0]
-    ax.text(0.04, 0.96, f"ρ={row.spearman_rho:.3f}\nHolm-adjusted {format_p(float(row.spearman_holm_p))}", transform=ax.transAxes, ha="left", va="top", fontsize=7)
+    ax.text(
+        0.04,
+        0.96,
+        f"ρ={row.spearman_rho:.3f}\nHolm-adjusted {format_p(float(row.spearman_holm_p))}",
+        transform=ax.transAxes,
+        ha="left",
+        va="top",
+        fontsize=7,
+    )
     ax.set_xlabel("DoRothEA BACH1 mean-z\nshared genes excluded")
     ax.set_ylabel("Hallmark hypoxia mean-z\nshared genes excluded")
     ax.legend(frameon=False, fontsize=6.5, loc="lower right")
+    ax.set_title("Patient-level BACH1–hypoxia covariance", loc="left", fontsize=8.5, pad=2)
     panel_label(ax, "c")
 
-    ax = fig.add_subplot(gs[1, 1])
+    ax = fig.add_subplot(gs[1, 5:8])
     order = ["original", "both_signatures_without_shared"]
-    labels = ["Original\nDoRothEA vs hypoxia", "Shared genes removed\nfrom both scores"]
+    labels = ["Original scores", "Shared genes excluded"]
     rows = lopo.set_index("comparison").loc[order].reset_index()
     y = np.arange(len(rows))
     ax.errorbar(
@@ -169,21 +195,24 @@ def main() -> None:
     )
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
-    ax.set_xlabel("Spearman ρ; line shows LOPO range")
-    ax.set_xlim(0.82, 0.94)
+    ax.set_xlabel("Spearman ρ\npoint = full data; line = LOPO range", fontsize=6.6, linespacing=1.1)
+    ax.set_xlim(0.82, 1.01)
     ax.invert_yaxis()
-    ax.text(0.02, 0.96, "LOPO sensitivity", transform=ax.transAxes, ha="left", va="top", fontsize=8)
+    for yi, row in zip(y, rows.itertuples(index=False)):
+        ax.text(float(row.max_rho) + 0.004, yi, f"{row.median_rho:.3f} [{row.min_rho:.3f}, {row.max_rho:.3f}]", va="center", ha="left", fontsize=6.1, color="#4A4A4A")
+    ax.set_title("Leave-one-patient-out robustness", loc="left", fontsize=8.5, pad=2)
     panel_label(ax, "d", x=-0.08)
 
-    ax = fig.add_subplot(gs[1, 2])
+    ax = fig.add_subplot(gs[1, 8:])
     ns = null_summary.loc[null_summary["comparison"].eq("deoverlapped_hypoxia")].iloc[0]
     nl = null_long.loc[null_long["comparison"].eq("deoverlapped_hypoxia")]
     ax.hist(nl["rho_random_vs_outcome"], bins=38, color="#BFCAD6", edgecolor="white", linewidth=0.4)
     ax.axvline(float(ns.observed_rho), color="#D62728", lw=1.4)
+    ax.axvline(float(ns.null_mean_rho), color="#4C78A8", lw=1.0, ls="--")
     ax.text(
         0.04,
         0.94,
-        f"observed ρ={float(ns.observed_rho):.2f}\nempirical {format_p(float(ns.empirical_p_greater_equal_observed))}",
+        f"observed ρ={float(ns.observed_rho):.2f}\nnull mean ρ={float(ns.null_mean_rho):.2f}\nempirical {format_p(float(ns.empirical_p_greater_equal_observed))}",
         transform=ax.transAxes,
         ha="left",
         va="top",
@@ -192,7 +221,8 @@ def main() -> None:
     )
     ax.set_xlabel("Matched random score vs de-overlapped hypoxia ρ")
     ax.set_ylabel("Permutation count")
-    ax.text(0.04, 0.04, "Matched-gene null", transform=ax.transAxes, ha="left", va="bottom", fontsize=8)
+    ax.set_title("Matched-gene null benchmark", loc="left", fontsize=8.5, pad=2)
+    ax.text(0.04, 0.04, "Red = observed; blue dashed = null mean", transform=ax.transAxes, ha="left", va="bottom", fontsize=6.1, color="#666666")
     panel_label(ax, "e")
 
     for axis in fig.axes:
