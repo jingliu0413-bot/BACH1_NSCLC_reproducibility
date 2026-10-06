@@ -101,7 +101,7 @@ def main() -> None:
         [f"{pid}\n(n={compact_n(n)})" for pid, n in zip(p["patient"], p["n_cells"])],
         rotation=45,
         ha="right",
-        fontsize=6.0,
+        fontsize=5.5,
         linespacing=1.0,
     )
     ax.set_ylabel("BACH1-detected fraction")
@@ -152,7 +152,7 @@ def main() -> None:
     ax.text(
         1.0,
         1.015,
-        "Colours indicate dataset; black dots show medians across patients. n=15 except Klenja (n=14).",
+        "Colours = dataset; black dots = patient medians. n=15; Klenja n=14.",
         transform=ax.transAxes,
         ha="right",
         va="bottom",
@@ -210,12 +210,12 @@ def main() -> None:
     ax.invert_yaxis()
     for yi, label, row in zip(y, labels, rows.itertuples(index=False)):
         ax.text(
-            0.997,
+            0.985,
             yi,
             f"{label}: ρ={row.full_rho:.3f};\nLOPO range: {row.min_rho:.3f}–{row.max_rho:.3f}",
             va="center",
             ha="right",
-            fontsize=6.2,
+            fontsize=6.9,
             color="#4A4A4A",
         )
     ax.set_title("Leave-one-patient-out robustness", loc="left", fontsize=8.5, pad=2)
@@ -229,8 +229,8 @@ def main() -> None:
     null_mean_rho = float(ns.null_mean_rho)
     ax.axvline(observed_rho, color="#D62728", lw=1.4)
     ax.axvline(null_mean_rho, color="#4C78A8", lw=1.0, ls="--")
-    ax.text(observed_rho, 0.94, "Observed", transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=6.2, color="#D62728")
-    ax.text(null_mean_rho, 0.94, "Null mean", transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=6.2, color="#4C78A8")
+    ax.text(observed_rho, 0.91, "Observed", transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=6.2, color="#D62728")
+    ax.text(null_mean_rho, 0.91, "Null mean", transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=6.2, color="#4C78A8")
     ax.text(
         0.04,
         0.94,
