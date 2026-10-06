@@ -220,9 +220,10 @@ def draw_workflow(ax: plt.Axes) -> None:
         ax.text(x + box_width / 2, y0 + 0.105, detail, ha="center", va="center", fontsize=5.6, color="#4A4A4A", linespacing=1.25, zorder=3)
     # Reinforce the two exposed outer edges so the workflow reads as a
     # continuous strip at print scale, including after PDF rasterisation.
-    ax.plot([xs[0], xs[0]], [y0, top], color=groups["Discovery (scRNA-seq)"]["edge"], lw=0.7, zorder=4)
+    outer_inset = 0.006
+    ax.plot([xs[0] + outer_inset, xs[0] + outer_inset], [y0, top], color=groups["Discovery (scRNA-seq)"]["edge"], lw=0.7, zorder=4)
     right_edge = xs[-1] + box_width
-    ax.plot([right_edge, right_edge], [y0, top], color=groups["Validation (bulk / spatial)"]["edge"], lw=0.7, zorder=4)
+    ax.plot([right_edge - outer_inset, right_edge - outer_inset], [y0, top], color=groups["Validation (bulk / spatial)"]["edge"], lw=0.7, zorder=4)
     for start, end in [
         (xs[0] + box_width + 0.005, xs[1] - 0.005),
         (xs[1] + box_width + 0.005, xs[2] - 0.005),
@@ -263,7 +264,7 @@ def plot_figure1() -> None:
         width_ratios=[1.0, 1.0, 1.06, 1.06],
         # Leave enough room for the upper-row x labels before the lower-row
         # titles; the same physical gap is used between all three rows.
-        hspace=0.48,
+        hspace=0.58,
         wspace=0.38,
     )
 
@@ -336,9 +337,9 @@ def plot_figure1() -> None:
     cb.ax.tick_params(labelsize=6.2, width=0.4)
     cb.outline.set_linewidth(0.4)
     for pct, xp in zip([25, 50, 75], [0.08, 0.18, 0.30]):
-        ax.scatter(xp, -0.18, s=8 + pct * 0.72, transform=ax.transAxes, color="#AEB7C2", edgecolor="white", linewidth=0.3, clip_on=False)
-        ax.text(xp + 0.035, -0.18, f"{pct}%", transform=ax.transAxes, va="center", ha="left", fontsize=6, color="#767676")
-    ax.text(0.08, -0.29, "fraction expressing", transform=ax.transAxes, va="center", ha="left", fontsize=6, color="#767676")
+        ax.scatter(xp, -0.22, s=8 + pct * 0.72, transform=ax.transAxes, color="#AEB7C2", edgecolor="white", linewidth=0.3, clip_on=False)
+        ax.text(xp + 0.035, -0.22, f"{pct}%", transform=ax.transAxes, va="center", ha="left", fontsize=6, color="#767676")
+    ax.text(0.08, -0.32, "fraction expressing", transform=ax.transAxes, va="center", ha="left", fontsize=6, color="#767676")
     panel_label(ax, "c")
 
     ax = fig.add_subplot(gs[2, :2])
