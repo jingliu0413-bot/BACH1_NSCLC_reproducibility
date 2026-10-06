@@ -180,18 +180,18 @@ def draw_workflow(ax: plt.Axes) -> None:
         ("NSCLC\nscRNA atlas", "GSE131907 + GSE274934\n176,294 cells"),
         ("Malignant\nepithelium", "13,694 cells\n16 patients"),
         ("BACH1–hypoxia\ncovariance", "DoRothEA score +\nHallmark hypoxia"),
-        ("Epithelial-state\narchitecture", "State programmes +\nresidualization"),
-        ("Pan-transcription\nfactor / TCGA", "TCGA-LUAD/LUSC\nn = 1,017"),
-        ("Independent spatial\nreplication", "GSE292299\n4 spatial sections"),
+        ("Epithelial-state\narchitecture", "State residualization +\npan-TF context"),
+        ("TCGA\nreplication", "TCGA-LUAD/LUSC\nn = 1,017"),
+        ("Independent spatial\nreplication", "GSE292299\n4 sections"),
     ]
     groups = {
-        "Discovery (scRNA-seq)": {"indices": range(0, 4), "face": "#E9EFF6", "edge": "#7A8CA5", "dark": "#3E5C84"},
-        "Validation (bulk / spatial)": {"indices": range(4, 6), "face": "#E8F2EC", "edge": "#6E9983", "dark": "#2F6B50"},
+        "Discovery / contextualisation": {"indices": range(0, 4), "face": "#E9EFF6", "edge": "#7A8CA5", "dark": "#3E5C84"},
+        "Independent replication": {"indices": range(4, 6), "face": "#E8F2EC", "edge": "#6E9983", "dark": "#2F6B50"},
     }
     group_for = {i: group for group, spec in groups.items() for i in spec["indices"]}
     margin, in_group_gap, between_group_gap = 0.005, 0.018, 0.04
     box_width = (1 - 2 * margin - 4 * in_group_gap - between_group_gap) / 6
-    y0, box_height = 0.04, 0.50
+    y0, box_height = 0.02, 0.56
     top = y0 + box_height
     xs, x = [], margin
     for i in range(6):
@@ -218,8 +218,8 @@ def draw_workflow(ax: plt.Axes) -> None:
         marker_x, marker_y = x + 0.018, top
         ax.scatter([marker_x], [marker_y], s=62, color=spec["dark"], edgecolor="white", linewidth=0.7, transform=ax.transAxes, zorder=4)
         ax.text(marker_x, marker_y, str(i), ha="center", va="center", fontsize=5.8, fontweight="bold", color="white", transform=ax.transAxes, zorder=5)
-        ax.text(x + box_width / 2, y0 + 0.31, title, ha="center", va="center", fontsize=6.9, fontweight="bold", linespacing=1.15, zorder=3)
-        ax.text(x + box_width / 2, y0 + 0.105, detail, ha="center", va="center", fontsize=5.6, color="#4A4A4A", linespacing=1.25, zorder=3)
+        ax.text(x + box_width / 2, y0 + 0.35, title, ha="center", va="center", fontsize=7.1, fontweight="bold", linespacing=1.15, zorder=3)
+        ax.text(x + box_width / 2, y0 + 0.115, detail, ha="center", va="center", fontsize=6.3, color="#4A4A4A", linespacing=1.20, zorder=3)
     for start, end in [
         (xs[0] + box_width + 0.005, xs[1] - 0.005),
         (xs[1] + box_width + 0.005, xs[2] - 0.005),
@@ -233,7 +233,7 @@ def draw_workflow(ax: plt.Axes) -> None:
         xa, xb = xs[first], xs[last] + box_width
         bracket_y = top + 0.085
         ax.plot([xa, xa, xb, xb], [bracket_y - 0.025, bracket_y, bracket_y, bracket_y - 0.025], color=spec["edge"], lw=0.6, solid_capstyle="butt", zorder=1)
-        ax.text((xa + xb) / 2, bracket_y + 0.035, label, ha="center", va="bottom", fontsize=6.5, fontweight="bold", color=spec["dark"])
+        ax.text((xa + xb) / 2, bracket_y + 0.035, label, ha="center", va="bottom", fontsize=6.7, fontweight="bold", color=spec["dark"])
 
 
 def plot_umap_categorical(ax: plt.Axes, df: pd.DataFrame, column: str, palette: dict[str, str], point_size: float, alpha: float) -> None:
@@ -274,14 +274,14 @@ def plot_figure1() -> None:
     plot_umap_categorical(ax, atlas, "major_celltype_auto", CELLTYPE_COLORS, point_size=0.45, alpha=0.68)
     centroids = atlas.groupby("major_celltype_auto", observed=True)[["UMAP1", "UMAP2"]].median()
     label_offsets = {
-        "B": (-0.55, 0.55),
+        "B": (-1.10, 1.00),
         "T/NK": (-0.55, 0.05),
-        "Plasma": (0.35, -0.75),
+        "Plasma": (1.00, -0.90),
         "Mast": (-0.35, -0.75),
         "Fibroblast": (0.35, -0.75),
-        "Epithelial": (0.35, -0.75),
-        "Endothelial": (1.00, 0.35),
-        "Myeloid": (0.55, 0.70),
+        "Epithelial": (1.20, -1.00),
+        "Endothelial": (1.50, 0.80),
+        "Myeloid": (0.80, 0.90),
     }
     for ct in CELLTYPE_ORDER:
         if ct in centroids.index:
@@ -328,14 +328,17 @@ def plot_figure1() -> None:
     ax.set_title("Canonical marker validation", loc="left", fontsize=9, pad=2)
     ax.grid(color="#E5E7EB", lw=0.45)
     ax.set_axisbelow(True)
-    cb = plt.colorbar(sc, ax=ax, fraction=0.040, pad=0.015)
-    cb.set_label("scaled mean\nexpression", fontsize=7.2)
+    cax = ax.inset_axes([1.025, 0.00, 0.025, 0.62])
+    cb = fig.colorbar(sc, cax=cax)
+    cb.set_label("Scaled mean\nexpression", fontsize=7.2)
     cb.ax.tick_params(labelsize=6.2, width=0.4)
     cb.outline.set_linewidth(0.4)
-    ax.text(0.035, -0.235, "Fraction expressing", transform=ax.transAxes, va="center", ha="left", fontsize=6, color="#767676")
-    for pct, xp in zip([25, 50, 75], [0.40, 0.59, 0.78]):
-        ax.scatter(xp, -0.235, s=8 + pct * 0.72, transform=ax.transAxes, color="#AEB7C2", edgecolor="white", linewidth=0.3, clip_on=False)
-        ax.text(xp + 0.035, -0.235, f"{pct}%", transform=ax.transAxes, va="center", ha="left", fontsize=6, color="#767676")
+    size_ax = ax.inset_axes([1.005, 0.68, 0.13, 0.30])
+    size_ax.axis("off")
+    size_ax.text(0.0, 1.0, "Fraction\nexpressing", transform=size_ax.transAxes, va="top", ha="left", fontsize=6.3, color="#5F6368", linespacing=1.15)
+    for pct, yp in zip([25, 50, 75], [0.58, 0.34, 0.10]):
+        size_ax.scatter(0.18, yp, s=8 + pct * 0.72, transform=size_ax.transAxes, color="#AEB7C2", edgecolor="white", linewidth=0.3, clip_on=False)
+        size_ax.text(0.50, yp, f"{pct}%", transform=size_ax.transAxes, va="center", ha="left", fontsize=6.1, color="#767676")
     panel_label(ax, "c")
 
     ax = fig.add_subplot(gs[2, :2])
@@ -362,7 +365,7 @@ def plot_figure1() -> None:
         )
     )
     ax.scatter([0.725], [0.915], transform=ax.transAxes, s=26, color="#D9544D", edgecolor="none", zorder=5)
-    ax.text(0.755, 0.915, "retained malignant", transform=ax.transAxes, fontsize=6.8, va="center", ha="left", zorder=5)
+    ax.text(0.755, 0.915, "primary malignant set", transform=ax.transAxes, fontsize=6.8, va="center", ha="left", zorder=5)
     ax.scatter([0.725], [0.865], transform=ax.transAxes, s=26, color="#B8C0CC", edgecolor="none", zorder=5)
     ax.text(0.755, 0.865, "other epithelial cells", transform=ax.transAxes, fontsize=6.8, va="center", ha="left", zorder=5)
     ax.text(
@@ -420,7 +423,7 @@ def plot_figure1() -> None:
     cb = plt.colorbar(sc, ax=ax, fraction=0.045, pad=0.02)
     cb.ax.tick_params(labelsize=6, width=0.4)
     cb.outline.set_linewidth(0.4)
-    cb.set_label("log-normalized\nBACH1", fontsize=7)
+    cb.set_label("log-normalized\nBACH1 expression", fontsize=7)
     panel_label(ax, "e")
 
     fig.subplots_adjust(top=0.95, bottom=0.08)
