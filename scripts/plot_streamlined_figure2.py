@@ -115,7 +115,8 @@ def main() -> None:
     ax.legend(handles=handles, frameon=False, fontsize=7, loc="upper left")
     panel_label(ax, "a")
 
-    ax = fig.add_subplot(gs[0, 5:])
+    # Leave a dedicated gutter between the dense patient bars and the score labels.
+    ax = fig.add_subplot(gs[0, 6:])
     y_positions = np.arange(len(SCORE_ORDER))[::-1]
     jitter = {"GSE131907": -0.07, "GSE274934": 0.07}
     for yi, score in zip(y_positions, SCORE_ORDER):
@@ -209,11 +210,12 @@ def main() -> None:
     ax.set_xlim(0.82, 1.01)
     ax.invert_yaxis()
     for yi, label, row in zip(y, labels, rows.itertuples(index=False)):
+        text_y = yi + 0.18 if yi == 0 else yi - 0.18
         ax.text(
             0.985,
-            yi,
+            text_y,
             f"{label}: ρ={row.full_rho:.3f};\nLOPO range: {row.min_rho:.3f}–{row.max_rho:.3f}",
-            va="center",
+            va="bottom" if yi == 0 else "top",
             ha="right",
             fontsize=6.9,
             color="#4A4A4A",
