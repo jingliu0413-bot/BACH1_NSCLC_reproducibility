@@ -181,7 +181,7 @@ def main() -> None:
 
     ax = fig.add_subplot(gs[1, 5:8])
     order = ["original", "both_signatures_without_shared"]
-    labels = ["Original scores", "De-overlapped"]
+    labels = ["Original", "De-overlapped"]
     rows = lopo.set_index("comparison").loc[order].reset_index()
     full_rho = cor.set_index("comparison")["spearman_rho"]
     rows["full_rho"] = rows["comparison"].map(full_rho)
