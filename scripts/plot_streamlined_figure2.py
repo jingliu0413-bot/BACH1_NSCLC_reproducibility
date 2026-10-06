@@ -173,15 +173,15 @@ def main() -> None:
         va="top",
         fontsize=7,
     )
-    ax.set_xlabel("DoRothEA BACH1 mean-z\nshared genes excluded")
-    ax.set_ylabel("Hallmark hypoxia mean-z\nshared genes excluded")
+    ax.set_xlabel("DoRothEA BACH1 mean-z")
+    ax.set_ylabel("Hallmark hypoxia mean-z")
     ax.legend(frameon=False, fontsize=6.5, loc="upper right", bbox_to_anchor=(1.0, 0.98))
     ax.set_title("Patient-level BACH1–hypoxia covariance", loc="left", fontsize=8.5, pad=2)
     panel_label(ax, "c")
 
     ax = fig.add_subplot(gs[1, 5:8])
     order = ["original", "both_signatures_without_shared"]
-    labels = ["Original scores", "Shared genes excluded"]
+    labels = ["Original scores", "De-overlapped"]
     rows = lopo.set_index("comparison").loc[order].reset_index()
     full_rho = cor.set_index("comparison")["spearman_rho"]
     rows["full_rho"] = rows["comparison"].map(full_rho)
