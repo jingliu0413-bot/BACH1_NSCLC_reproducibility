@@ -32,7 +32,7 @@ SCORE_LABELS = {
     "DOROTHEA_BACH1_ABC_TF_ACTIVITY_NO_HYPOXIA_OVERLAP__mean_z": "DoRothEA mean-z\nshared genes excluded",
     "LITERATURE_LUNG_BACH1_EFFECTOR_ACTIVITY__mean_z": "lung effector mean-z",
     "COLLECTRI_BACH1_TF_ACTIVITY__mean_z": "CollecTRI mean-z",
-    "KLENJA2025_BACH1_INVERSE_ACTIVITY__mean_z": "Klenja inverse score",
+    "KLENJA2025_BACH1_INVERSE_ACTIVITY__mean_z": "Klenja inverse mean-z",
 }
 
 
@@ -86,7 +86,7 @@ def main() -> None:
     fig = plt.figure(figsize=(13.4, 7.4), constrained_layout=True)
     # Give the central covariance and matched-null panels more visual weight;
     # keep the score-selection comparison compact and the LOPO panel readable.
-    gs = fig.add_gridspec(2, 12, height_ratios=[0.92, 1.08], wspace=0.75, hspace=0.50)
+    gs = fig.add_gridspec(2, 12, height_ratios=[0.88, 1.12], wspace=0.75, hspace=0.50)
 
     ax = fig.add_subplot(gs[0, :5])
     p = patient.sort_values(["dataset", "BACH1_detected_fraction"]).reset_index(drop=True)
@@ -149,8 +149,16 @@ def main() -> None:
     for tick, score in zip(ax.get_yticklabels(), label_scores):
         tick.set_color("#2F5C84" if score.startswith("DOROTHEA") else "#73777D")
         tick.set_fontweight("bold" if score.startswith("DOROTHEA") else "normal")
-    ax.text(0.50, 1.015, "colour = dataset; black dot = median across patients", transform=ax.transAxes, ha="left", va="bottom", fontsize=6.2, color="#666666")
-    ax.text(1.015, 1.015, "n=15 patients except Klenja (n=14)", transform=ax.transAxes, ha="left", va="bottom", fontsize=6.2, color="#666666")
+    ax.text(
+        1.0,
+        1.015,
+        "Colours indicate dataset; black dots show medians across patients. n=15 except Klenja (n=14).",
+        transform=ax.transAxes,
+        ha="right",
+        va="bottom",
+        fontsize=6.2,
+        color="#666666",
+    )
     panel_label(ax, "b", x=-0.06)
 
     ax = fig.add_subplot(gs[1, :5])
@@ -196,18 +204,18 @@ def main() -> None:
         capsize=2,
     )
     ax.set_yticks(y)
-    ax.set_yticklabels(labels)
+    ax.set_yticklabels([])
     ax.set_xlabel("Spearman ρ\npoint = full data; line = LOPO range", fontsize=6.6, linespacing=1.1)
     ax.set_xlim(0.82, 1.01)
     ax.invert_yaxis()
-    for yi, row in zip(y, rows.itertuples(index=False)):
+    for yi, label, row in zip(y, labels, rows.itertuples(index=False)):
         ax.text(
             0.997,
             yi,
-            f"ρ={row.full_rho:.3f};\nLOPO range: {row.min_rho:.3f}–{row.max_rho:.3f}",
+            f"{label}: ρ={row.full_rho:.3f};\nLOPO range: {row.min_rho:.3f}–{row.max_rho:.3f}",
             va="center",
             ha="right",
-            fontsize=5.8,
+            fontsize=6.2,
             color="#4A4A4A",
         )
     ax.set_title("Leave-one-patient-out robustness", loc="left", fontsize=8.5, pad=2)
@@ -221,8 +229,8 @@ def main() -> None:
     null_mean_rho = float(ns.null_mean_rho)
     ax.axvline(observed_rho, color="#D62728", lw=1.4)
     ax.axvline(null_mean_rho, color="#4C78A8", lw=1.0, ls="--")
-    ax.text(observed_rho, 0.98, "Observed", transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=6.2, color="#D62728")
-    ax.text(null_mean_rho, 0.98, "Null mean", transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=6.2, color="#4C78A8")
+    ax.text(observed_rho, 0.94, "Observed", transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=6.2, color="#D62728")
+    ax.text(null_mean_rho, 0.94, "Null mean", transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=6.2, color="#4C78A8")
     ax.text(
         0.04,
         0.94,
