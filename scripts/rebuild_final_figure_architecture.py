@@ -218,12 +218,6 @@ def draw_workflow(ax: plt.Axes) -> None:
         ax.text(marker_x, marker_y, str(i), ha="center", va="center", fontsize=5.8, fontweight="bold", color="white", transform=ax.transAxes, zorder=5)
         ax.text(x + box_width / 2, y0 + 0.31, title, ha="center", va="center", fontsize=6.9, fontweight="bold", linespacing=1.15, zorder=3)
         ax.text(x + box_width / 2, y0 + 0.105, detail, ha="center", va="center", fontsize=5.6, color="#4A4A4A", linespacing=1.25, zorder=3)
-    # Reinforce the two exposed outer edges so the workflow reads as a
-    # continuous strip at print scale, including after PDF rasterisation.
-    outer_inset = 0.006
-    ax.plot([xs[0] + outer_inset, xs[0] + outer_inset], [y0, top], color=groups["Discovery (scRNA-seq)"]["edge"], lw=0.7, zorder=4)
-    right_edge = xs[-1] + box_width
-    ax.plot([right_edge - outer_inset, right_edge - outer_inset], [y0, top], color=groups["Validation (bulk / spatial)"]["edge"], lw=0.7, zorder=4)
     for start, end in [
         (xs[0] + box_width + 0.005, xs[1] - 0.005),
         (xs[1] + box_width + 0.005, xs[2] - 0.005),
@@ -336,10 +330,10 @@ def plot_figure1() -> None:
     cb.set_label("scaled mean\nexpression", fontsize=7.2)
     cb.ax.tick_params(labelsize=6.2, width=0.4)
     cb.outline.set_linewidth(0.4)
-    for pct, xp in zip([25, 50, 75], [0.08, 0.18, 0.30]):
-        ax.scatter(xp, -0.22, s=8 + pct * 0.72, transform=ax.transAxes, color="#AEB7C2", edgecolor="white", linewidth=0.3, clip_on=False)
-        ax.text(xp + 0.035, -0.22, f"{pct}%", transform=ax.transAxes, va="center", ha="left", fontsize=6, color="#767676")
-    ax.text(0.08, -0.32, "fraction expressing", transform=ax.transAxes, va="center", ha="left", fontsize=6, color="#767676")
+    ax.text(0.035, -0.235, "Fraction expressing", transform=ax.transAxes, va="center", ha="left", fontsize=6, color="#767676")
+    for pct, xp in zip([25, 50, 75], [0.40, 0.59, 0.78]):
+        ax.scatter(xp, -0.235, s=8 + pct * 0.72, transform=ax.transAxes, color="#AEB7C2", edgecolor="white", linewidth=0.3, clip_on=False)
+        ax.text(xp + 0.035, -0.235, f"{pct}%", transform=ax.transAxes, va="center", ha="left", fontsize=6, color="#767676")
     panel_label(ax, "c")
 
     ax = fig.add_subplot(gs[2, :2])
