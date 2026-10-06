@@ -175,7 +175,7 @@ def draw_workflow(ax: plt.Axes) -> None:
     ax.axis("off")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
-    ax.text(0.0, 1.03, "Study design", ha="left", va="bottom", fontsize=9, fontweight="semibold")
+    ax.text(0.0, 1.03, "Study design", ha="left", va="bottom", fontsize=9, fontweight="normal")
     boxes = [
         ("NSCLC\nscRNA atlas", "GSE131907 + GSE274934\n176,294 cells"),
         ("Malignant\nepithelium", "13,694 cells\n16 patients"),
@@ -219,7 +219,7 @@ def draw_workflow(ax: plt.Axes) -> None:
         ax.scatter([marker_x], [marker_y], s=62, color=spec["dark"], edgecolor="white", linewidth=0.7, transform=ax.transAxes, zorder=4)
         ax.text(marker_x, marker_y, str(i), ha="center", va="center", fontsize=5.8, fontweight="bold", color="white", transform=ax.transAxes, zorder=5)
         ax.text(x + box_width / 2, y0 + 0.35, title, ha="center", va="center", fontsize=7.1, fontweight="bold", linespacing=1.15, zorder=3)
-        ax.text(x + box_width / 2, y0 + 0.115, detail, ha="center", va="center", fontsize=6.3, color="#4A4A4A", linespacing=1.20, zorder=3)
+        ax.text(x + box_width / 2, y0 + 0.115, detail, ha="center", va="center", fontsize=6.7, color="#4A4A4A", linespacing=1.20, zorder=3)
     for start, end in [
         (xs[0] + box_width + 0.005, xs[1] - 0.005),
         (xs[1] + box_width + 0.005, xs[2] - 0.005),
@@ -274,13 +274,13 @@ def plot_figure1() -> None:
     plot_umap_categorical(ax, atlas, "major_celltype_auto", CELLTYPE_COLORS, point_size=0.45, alpha=0.68)
     centroids = atlas.groupby("major_celltype_auto", observed=True)[["UMAP1", "UMAP2"]].median()
     label_offsets = {
-        "B": (-1.10, 1.00),
+        "B": (-1.35, 1.30),
         "T/NK": (-0.55, 0.05),
-        "Plasma": (1.00, -0.90),
+        "Plasma": (1.35, -1.15),
         "Mast": (-0.35, -0.75),
         "Fibroblast": (0.35, -0.75),
-        "Epithelial": (1.20, -1.00),
-        "Endothelial": (1.50, 0.80),
+        "Epithelial": (1.55, -1.25),
+        "Endothelial": (1.80, 1.00),
         "Myeloid": (0.80, 0.90),
     }
     for ct in CELLTYPE_ORDER:
@@ -328,12 +328,12 @@ def plot_figure1() -> None:
     ax.set_title("Canonical marker validation", loc="left", fontsize=9, pad=2)
     ax.grid(color="#E5E7EB", lw=0.45)
     ax.set_axisbelow(True)
-    cax = ax.inset_axes([1.025, 0.00, 0.025, 0.62])
+    cax = ax.inset_axes([1.04, 0.00, 0.030, 0.62])
     cb = fig.colorbar(sc, cax=cax)
     cb.set_label("Scaled mean\nexpression", fontsize=7.2)
     cb.ax.tick_params(labelsize=6.2, width=0.4)
     cb.outline.set_linewidth(0.4)
-    size_ax = ax.inset_axes([1.005, 0.68, 0.13, 0.30])
+    size_ax = ax.inset_axes([1.00, 0.68, 0.18, 0.30])
     size_ax.axis("off")
     size_ax.text(0.0, 1.0, "Fraction\nexpressing", transform=size_ax.transAxes, va="top", ha="left", fontsize=6.3, color="#5F6368", linespacing=1.15)
     for pct, yp in zip([25, 50, 75], [0.58, 0.34, 0.10]):
@@ -406,13 +406,13 @@ def plot_figure1() -> None:
         linewidths=0,
         rasterized=True,
     )
-    ax.set_title("BACH1 transcript heterogeneity", loc="left", fontsize=9, pad=2)
+    ax.set_title("BACH1 transcript heterogeneity in malignant epithelium", loc="left", fontsize=8.5, pad=2)
     format_umap_axes(ax)
     ax.set_xlim(epithelial["UMAP1"].min(), epithelial["UMAP1"].max())
     ax.set_ylim(epithelial["UMAP2"].min(), epithelial["UMAP2"].max())
     ax.text(
-        0.98,
-        0.96,
+        0.94,
+        0.93,
         f"BACH1 detected: {positive.mean() * 100:.1f}%",
         transform=ax.transAxes,
         ha="right",
