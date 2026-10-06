@@ -206,7 +206,9 @@ def draw_workflow(ax: plt.Axes) -> None:
                 (x, y0),
                 box_width,
                 box_height,
-                boxstyle="round,pad=0.010,rounding_size=0.010",
+                # Zero padding keeps the visible edge exactly on the intended
+                # workflow boundary; the rounded corners remain subtle at print size.
+                boxstyle="round,pad=0.000,rounding_size=0.006",
                 fc=spec["face"],
                 ec=spec["edge"],
                 lw=0.55,
