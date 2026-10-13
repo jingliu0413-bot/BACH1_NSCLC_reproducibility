@@ -29,14 +29,13 @@ This document describes the current manuscript submission analysis workflow. Lar
 | 7.5 | `compare_pyscenic_seed_stability.py` | Seeds 777-781 full-TF pySCENIC outputs | Five-seed BACH1 target recurrence, Jaccard and weighted-importance tables |
 | 8.1 | `run_bach1_atac_motif_support_ucsc_targeted.py` | Five ATAC matrices, GENCODE and UCSC JASPAR2026 bigBed | Target-window BACH1-family motif support and score-threshold summaries |
 | 8.2 | `plot_supplementary_figure5_scatac_target_window_context.py` | ATAC target-window outputs | Supplementary scATAC figure and source tables |
-| 9.1 | `run_spatial_revision_statistics.py` | E-MTAB-13530 spatial score tables | QC-adjusted and paired-patient spatial statistics |
-| 9.2 | `run_spatial_bach1_nod_threshold_lopo_sensitivity.py` | Spatial score tables | Threshold and leave-one-patient-out sensitivity results |
-| 9.3 | `score_spatial_stable_bach1_regulon.py` | Spatial matrices and recurrent BACH1 candidates | Spatial recurrent-candidate score summaries |
-| 10.1 | `replot_figure4_pyscenic_from_source_data.py` | Current restricted-consensus pySCENIC outputs | Final Figure 4 source data and figure |
-| 10.2 | `plot_bach1_story_4figures_10kb.py` | Final analysis outputs | Main Figures 1-4 |
-| 10.3 | `plot_cnv_supplement_figure_s1.py` | CNV outputs | Supplementary Figure 1 |
-| 10.4 | `plot_spatial_skill_supplement_figure3.py` | Spatial outputs | Supplementary spatial QC/domain/signature figure |
-| 10.5 | `prepare_supplementary_tables.py` | Final result tables | Combined supplementary workbook source sheets |
+| 9.1 | `run_spatial_state_context_analysis.py` | GSE292299 expression and coordinate inputs | Projected spatial scores, section-level correlations and state-PC residualization |
+| 9.2 | `run_spatial_state_pc_block_null.py` | GSE292299 projected score table | Raw 20-by-20 block null and state-adjusted block-size sensitivity summaries |
+| 9.3 | `run_spatial_state_deoverlap_sensitivity.py` | Locked GSE292299 score table and epithelial-state gene sets | State-score de-overlap and residual-correlation audit |
+| 10.1 | `rebuild_final_figure_architecture.py` | Final analysis outputs | Main Figures 1-4 and Supplementary Figures 1-3 |
+| 10.2 | `plot_spatial_extension_draft.py` | GSE292299 spatial summaries | Main Figure 5 |
+| 10.3 | `update_supplementary_figures45_legends.py` | Locked manuscript legends and sensitivity outputs | Supplementary Figures 4-5 legend synchronization |
+| 10.4 | `prepare_supplementary_tables.py` | Final result tables | Combined supplementary workbook source sheets |
 
 ## Fixed Analysis Definitions
 
@@ -54,21 +53,24 @@ This document describes the current manuscript submission analysis workflow. Lar
 - pySCENIC visualization: seed 777 full-TF run in the restricted CNV-consensus set is used for AUCell UMAP/distribution and motif-pruning display.
 - pySCENIC stability: seeds 777-781 are summarized independently; recurrence in at least 3/5 seeds defines the recurrent restricted-consensus candidate set.
 - scATAC target-window context: tumour ATAC peaks are intersected with UCSC JASPAR2026 BACH1/Bach1::Mafk motif hits in candidate TSS +/-10-kb windows; UCSC field 5 score thresholds 300, 400 and 500 are reported as sensitivity checks.
-- Spatial high states: sample-specific quantile thresholds, with BACH1 additionally required to have positive expression.
-- Spatial neighbourhood: six nearest Visium spots.
-- Paired spatial statistics: patient-level two-sided Wilcoxon signed-rank tests across eight tumour-adjacent pairs, with Holm correction for the specified endpoint families.
+- GSE292299 spatial projection: de-overlapped DoRothEA BACH1, Hallmark hypoxia and epithelial-state programme scores are projected to P5, P8, P12 and P15 using the frozen score definitions.
+- Spatial state adjustment: DoRothEA-hypoxia residualization uses three PCs from four projected epithelial programmes; Stress_AP1-hypoxia uses leave-one-programme-out PCs to avoid self-adjustment.
+- Spatial neighbourhood: six nearest array-coordinate neighbours with row-standardised edge weights.
+- Spatial nulls: Figure 5d uses the raw DoRothEA-hypoxia pair with a 20-by-20 locally constrained block null; Supplementary Figure 5 uses the state-PC-residualized pair at block sizes 10, 15, 20 and 30.
 
 ## Current Figure Mapping
 
 - Figure 1: cellular context and study design.
 - Figure 2: external BACH1 activity estimates, patient-level DoRothEA-hypoxia association and matched-null robustness.
-- Figure 3: TCGA-LUAD/LUSC bulk score-association replication.
-- Figure 4: restricted-consensus co-expression, seed-777 pySCENIC visualization and five-seed recurrence.
+- Figure 3: malignant epithelial-state architecture and attenuation of patient-level BACH1-hypoxia covariance.
+- Figure 4: pan-TF contextualisation and TCGA-LUAD/LUSC bulk score-association replication.
+- Figure 5: independent GSE292299 spatial replication and state-PC attenuation.
 - Supplementary Figure 1: CNV malignant epithelial selection.
-- Supplementary Figures 2-4: spatial/NOD tissue-context and sensitivity analyses.
-- Supplementary Figure 5: tumour scATAC proximal accessible-motif context.
-- Supplementary Figure 6: recurrent-candidate integration and GO/KEGG context.
+- Supplementary Figure 2: tumour scATAC proximal accessible-motif context.
+- Supplementary Figure 3: multi-omic prioritisation of BACH1-associated candidate regulatory features.
+- Supplementary Figure 4: scRNA cohort-stratified BACH1-hypoxia covariance.
+- Supplementary Figure 5: state-adjusted spatial block-size sensitivity.
 
 ## Interpretation Scope
 
-The analysis identifies a patient-level DoRothEA-derived BACH1 score linked to a hypoxia-associated transcriptional context in NSCLC tumour epithelium. TCGA provides independent bulk-cohort reproducibility of the score association. pySCENIC, ATAC and spatial analyses prioritize candidates and tissue-context features for follow-up; they do not by themselves establish BACH1 protein activity, direct occupancy, enhancer-promoter regulation or causality.
+The analysis identifies a patient-level DoRothEA-derived BACH1 score linked to a hypoxia-associated transcriptional context in NSCLC tumour epithelium. Much of this covariance is embedded within malignant epithelial-state architecture. TCGA provides independent bulk-cohort reproducibility, and GSE292299 provides independent section-level spatial replication of the same state-embedded pattern. pySCENIC and ATAC analyses prioritize candidates for follow-up; they do not by themselves establish BACH1 protein activity, direct occupancy, enhancer-promoter regulation or causality.

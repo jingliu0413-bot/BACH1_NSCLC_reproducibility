@@ -17,7 +17,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Polygon
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Polygon, Rectangle
 from matplotlib.lines import Line2D
 from matplotlib import colors as mpl_colors
 from matplotlib import ticker as mpl_ticker
@@ -173,8 +173,10 @@ def format_umap_axes(ax: plt.Axes) -> None:
 
 def draw_workflow(ax: plt.Axes) -> None:
     ax.axis("off")
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
+    # Reserve a labelled band inside panel b so candidate names do not drift
+    # into the inter-panel gutter between a and b.
+    ax.set_xlim(-0.28, 1)
+    ax.set_ylim(-0.08, 1)
     ax.text(0.0, 1.03, "Study design", ha="left", va="bottom", fontsize=9, fontweight="normal")
     boxes = [
         ("NSCLC\nscRNA atlas", "GSE131907 + GSE274934\n176,294 cells"),
@@ -439,8 +441,17 @@ def plot_figure3() -> None:
     within_state = pd.read_csv(TABLE_DIR / "figure4c_within_state_patient_aware_associations.csv")
 
     set_style()
-    fig = plt.figure(figsize=(12.4, 8.6), constrained_layout=True)
-    gs = fig.add_gridspec(2, 2, height_ratios=[1.15, 1.0], width_ratios=[1.05, 1.15])
+    # Leave a deliberate publication-sized gap between the heatmap labels and
+    # the lower forest plots; the lower row carries the primary statistics.
+    fig = plt.figure(figsize=(12.4, 9.2), constrained_layout=True)
+    gs = fig.add_gridspec(
+        2,
+        2,
+        height_ratios=[1.0, 0.92],
+        width_ratios=[1.28, 0.72],
+        hspace=0.36,
+        wspace=0.28,
+    )
 
     ax = fig.add_subplot(gs[0, 0])
     for state in STATE_ORDER:
@@ -458,36 +469,52 @@ def plot_figure3() -> None:
             )
     ax.set_xlabel("UMAP 1")
     ax.set_ylabel("UMAP 2")
+    ax.text(-0.11, 1.09, "a", transform=ax.transAxes, fontsize=12, fontweight="bold", ha="left", va="bottom")
+    ax.text(-0.055, 1.09, "Malignant epithelial-state landscape", transform=ax.transAxes,
+            fontsize=8.5, fontweight="bold", ha="left", va="bottom")
     ax.legend(frameon=False, markerscale=5, ncol=2, loc="upper left", bbox_to_anchor=(0.0, 1.0))
-    panel_label(ax, "a")
 
     ax = fig.add_subplot(gs[0, 1])
     idx = [s for s in STATE_ORDER if s in heat_z.index]
-    heat_df = heat_z.loc[idx]
+    heat_df = heat_z.loc[idx].rename(columns={"BACH1 detected": "BACH1 detection"})
+    # An explicit masked spacer separates the binary detection column from
+    # the programme scores without adding a second colour scale.
+    if "BACH1 detection" in heat_df.columns:
+        gap = pd.Series(np.nan, index=heat_df.index, name="__gap__")
+        heat_df.insert(1, "__gap__", gap)
     sns.heatmap(
         heat_df,
         cmap="vlag",
         center=0,
         linewidths=0.4,
         linecolor="white",
-        cbar_kws={"label": "Column z"},
+        mask=heat_df.isna(),
+        cbar_kws={"label": "Column-standardized z-score"},
         ax=ax,
     )
     ax.set_xlabel("")
     ax.set_ylabel("")
-    ax.tick_params(axis="x", labelrotation=45, labelsize=7)
-    if "BACH1 detected" in heat_df.columns:
-        ax.axvline(1, color="#222222", lw=1.0)
+    ax.tick_params(axis="x", labelrotation=38, labelsize=7, pad=2)
+    ax.set_xticklabels(["" if c == "__gap__" else c for c in heat_df.columns], rotation=38, ha="right", fontsize=7)
+    if "BACH1 detection" in heat_df.columns:
+        ax.axvline(1, color="#222222", lw=0.8)
+        ax.text(0.12, 1.06, "BACH1 detection", transform=ax.transAxes,
+                ha="center", va="bottom", fontsize=6.6, fontweight="bold")
+        ax.text(0.60, 1.06, "Transcriptional programmes", transform=ax.transAxes,
+                ha="center", va="bottom", fontsize=6.6, fontweight="bold")
     labels = []
     for state in heat_df.index:
         row = state_summary.loc[state]
         labels.append(f"{STATE_DISPLAY[state]} | {int(row.n_cells):,} cells | {int(row.n_patients)} patients")
     ax.set_yticklabels(labels, rotation=0, fontsize=7)
-    panel_label(ax, "b", x=-0.08)
+    ax.text(-0.12, 1.09, "b", transform=ax.transAxes, fontsize=12, fontweight="bold", ha="left", va="bottom")
 
-    sub = gs[1, 0].subgridspec(1, 2, width_ratios=[0.66, 0.34], wspace=0.02)
+    sub = gs[1, 0].subgridspec(1, 2, width_ratios=[0.70, 0.30], wspace=0.02)
     ax = fig.add_subplot(sub[0, 0])
     ax_ann = fig.add_subplot(sub[0, 1], sharey=ax)
+    ax.text(-0.10, 1.12, "c", transform=ax.transAxes, fontsize=12, fontweight="bold", ha="left", va="bottom")
+    ax.text(-0.045, 1.12, "Epithelial-state composition accounts for much of BACH1–hypoxia covariance",
+            transform=ax.transAxes, fontsize=8.2, fontweight="bold", ha="left", va="bottom")
     y = np.arange(len(attenuation))
     ax.axvline(0, color="0.72", lw=0.8)
     ax.errorbar(
@@ -497,11 +524,20 @@ def plot_figure3() -> None:
         fmt="o",
         color="#333333",
         ecolor="#333333",
-        capsize=2,
-        lw=1.1,
+        capsize=3,
+        lw=1.3,
+        elinewidth=1.3,
+        markersize=7.0,
     )
     ax.set_yticks(y)
-    ax.set_yticklabels(attenuation["comparison"], fontsize=7)
+    attenuation_labels = {
+        "Original scores": "Original scores",
+        "Shared genes removed": "Shared genes removed",
+        "Dataset and QC residuals": "Dataset + QC adjusted",
+        "Dataset, QC and state-PC residuals": "Dataset + QC + state-PC adjusted",
+        "Full residuals, >=20-cell patients": "Fully adjusted, ≥20-cell patients",
+    }
+    ax.set_yticklabels([attenuation_labels.get(v, v) for v in attenuation["comparison"]], fontsize=7)
     ax.set_xlabel(r"Spearman $\rho$")
     ax.set_xlim(-1, 1)
     ax.invert_yaxis()
@@ -511,17 +547,16 @@ def plot_figure3() -> None:
             i,
             rf"$\rho$={r.rho:.2f} [{r.ci_low:.2f}, {r.ci_high:.2f}]"
             + "\n"
-            + f"n={int(r.n_patients)}; {format_p(r.p_value)}",
+            + f"n={int(r.n_patients)}; raw {format_p(r.p_value)}",
             ha="left",
             va="center",
-            fontsize=7,
+                fontsize=8.2,
         )
     ax_ann.set_xlim(0, 1)
     ax_ann.set_ylim(ax.get_ylim())
     ax_ann.axis("off")
-    panel_label(ax, "c")
 
-    sub = gs[1, 1].subgridspec(1, 2, width_ratios=[0.62, 0.38], wspace=0.02)
+    sub = gs[1, 1].subgridspec(1, 2, width_ratios=[0.60, 0.40], wspace=0.02)
     ax = fig.add_subplot(sub[0, 0])
     ax_ann = fig.add_subplot(sub[0, 1], sharey=ax)
     ws = within_state.dropna(subset=["spearman_rho"]).copy()
@@ -536,12 +571,17 @@ def plot_figure3() -> None:
         fmt="o",
         color="#4C72B0",
         ecolor="#4C72B0",
-        capsize=2,
-        lw=1.1,
+        capsize=3,
+        lw=1.3,
+        elinewidth=1.3,
+        markersize=7.0,
     )
     ax.set_yticks(y)
     ax.set_yticklabels([STATE_DISPLAY[str(s)] for s in ws["state"]], fontsize=7)
     ax.set_xlabel(r"Within-state patient-level $\rho$")
+    ax.text(-0.16, 1.12, "d", transform=ax.transAxes, fontsize=12, fontweight="bold", ha="left", va="bottom")
+    ax.text(-0.09, 1.12, "Within-state BACH1–hypoxia associations", transform=ax.transAxes,
+            fontsize=8.2, fontweight="bold", ha="left", va="bottom")
     ax.set_xlim(-1, 1)
     ax.invert_yaxis()
     for i, r in enumerate(ws.itertuples(index=False)):
@@ -553,13 +593,11 @@ def plot_figure3() -> None:
             + f"n={int(r.n_patient_state_units)}; Holm {format_p(r.holm_adjusted_p_across_states)}",
             ha="left",
             va="center",
-            fontsize=7,
+            fontsize=8.2,
         )
     ax_ann.set_xlim(0, 1)
     ax_ann.set_ylim(ax.get_ylim())
     ax_ann.axis("off")
-    panel_label(ax, "d", x=-0.08)
-
     save_all(fig, "Figure3_epithelial_state_architecture")
 
 
@@ -747,10 +785,11 @@ def plot_figure5() -> None:
     n_lower = int(len(cand) - n_tier1 - n_tier2)
 
     set_style()
-    fig = plt.figure(figsize=(11.8, 8.1), constrained_layout=True)
-    gs = fig.add_gridspec(2, 2, height_ratios=[0.95, 1.05], width_ratios=[0.92, 1.38])
+    fig = plt.figure(figsize=(12.2, 8.3), constrained_layout=True)
+    gs = fig.add_gridspec(2, 2, height_ratios=[0.98, 1.02], width_ratios=[0.92, 1.48])
 
     ax = fig.add_subplot(gs[0, 0])
+    ax.set_title("Candidate funnel and evidence tiering", loc="left", fontsize=9, pad=6)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.axis("off")
@@ -786,20 +825,23 @@ def plot_figure5() -> None:
                     color="#666666",
                 )
             )
-    tier_y = 0.08
+    # Keep a clear label-to-box gap while preserving a closed lower border.
+    tier_y = 0.015
+    tier_h = 0.22
     tier_boxes = [
-        (0.10, tier_y, 0.22, 0.13, f"Tier 1\nn={n_tier1}", "#F0CBC8"),
-        (0.37, tier_y, 0.22, 0.13, f"Tier 2\nn={n_tier2}", "#F5D9C8"),
-        (0.64, tier_y, 0.28, 0.13, f"Context-\nlimited\nn={n_lower}", "#E8E1EF"),
+        (0.10, tier_y, 0.22, tier_h, f"Tier 1\nn={n_tier1}\n5/5 seeds\nATAC 5/5 + promoter+", "#F0CBC8"),
+        (0.37, tier_y, 0.22, tier_h, f"Tier 2\nn={n_tier2}\n4/5 seeds\nATAC 5/5 + promoter+", "#F5D9C8"),
+        (0.64, tier_y, 0.28, tier_h, f"Context-limited\nn={n_lower}\nATAC <5/5 or\nno promoter support", "#E8E1EF"),
     ]
-    ax.add_patch(FancyArrowPatch((0.5, y0 - 2 * 0.2 - h - 0.018), (0.5, tier_y + 0.13), arrowstyle="-|>", mutation_scale=9, lw=0.8, color="#666666"))
+    ax.add_patch(FancyArrowPatch((0.5, y0 - 2 * 0.2 - h - 0.018), (0.5, tier_y + tier_h), arrowstyle="-|>", mutation_scale=9, lw=0.8, color="#666666"))
     ax.text(
-        0.72,
-        tier_y + 0.18,
-        "Recurrence/chromatin\ncontext tiering",
+        0.56,
+        tier_y + tier_h + 0.040,
+        "Evidence-based tiering",
         ha="left",
-        va="bottom",
-        fontsize=6,
+        va="center",
+        fontsize=6.8,
+        fontweight="bold",
         bbox={"facecolor": "white", "edgecolor": "none", "pad": 0.8},
     )
     for x0, y0_box, w, h_box, text, color in tier_boxes:
@@ -814,76 +856,106 @@ def plot_figure5() -> None:
                 linewidth=0.8,
             )
         )
-        ax.text(x0 + w / 2, y0_box + h_box / 2, text, ha="center", va="center", fontsize=8, linespacing=0.9)
-    panel_label(ax, "a", x=-0.02)
+        ax.text(x0 + w / 2, y0_box + h_box / 2, text, ha="center", va="center", fontsize=6.8, linespacing=1.03)
+    panel_label(ax, "a", x=-0.10, y=1.04)
 
     ax = fig.add_subplot(gs[0, 1])
+    ax.set_title("Candidate evidence by tier", loc="left", fontsize=9, pad=28)
     motif_links = pd.to_numeric(cand["n_ucsc_score_ge_300_motif_peak_links_in_window"], errors="coerce").fillna(0)
-    sample_links = pd.to_numeric(cand["n_samples_with_motif_peak_in_window"], errors="coerce").fillna(0)
     promoter_links = pd.to_numeric(cand.get("n_promoter_2kb_motif_peak_links", 0), errors="coerce").fillna(0)
     y = np.arange(len(cand))
     max_links = max(1.0, float(motif_links.max()))
-    ax.set_xlim(0, 1)
-    ax.set_ylim(-0.85, len(cand) - 0.15)
+    max_promoter_links = max(1.0, float(promoter_links.max()))
+    ax.set_xlim(-0.30, 1.22)
+    ax.set_ylim(-1.65, len(cand) - 0.15)
+    sample_order = ["AL05", "AL08", "AL10", "AL11", "AL12"]
+    tier_colors = {1: "#E9B9B5", 2: "#EFCBAE", 3: "#D9CDE6"}
     for i, gene in enumerate(cand["gene"]):
-        ax.hlines(i, 0.04, 0.42, color="#E6E6E6", lw=4.0, zorder=0)
-        bar_end = 0.04 + 0.38 * float(motif_links.iloc[i]) / max_links
-        ax.hlines(i, 0.04, bar_end, color="#55A868", lw=4.0, zorder=1)
-        ax.text(min(0.50, bar_end + 0.018), i, f"{int(motif_links.iloc[i])}", ha="left", va="center", fontsize=6.5, color="#444444")
-        for j in range(5):
-            face = "#4C72B0" if j < int(sample_links.iloc[i]) else "white"
-            ax.scatter(0.56 + j * 0.035, i, s=18, facecolor=face, edgecolor="#4C72B0", lw=0.7, zorder=2)
+        tier_rank = min(3, TIER_ORDER.get(str(cand["candidate_tier"].iloc[i]), 3))
+        ax.hlines(i, -0.27, -0.245, color=tier_colors[tier_rank], lw=4.5, zorder=5)
+        ax.text(0.095, i, gene, ha="right", va="center", fontsize=7, fontstyle="italic", color="#333333")
+        ax.text(0.145, i, f"{int(cand['n_runs_detected'].iloc[i])}/5", ha="center", va="center", fontsize=6.8, color="#444444")
+        ax.hlines(i, 0.25, 0.50, color="#E6E6E6", lw=4.0, zorder=0)
+        bar_end = 0.25 + 0.25 * float(motif_links.iloc[i]) / max_links
+        ax.hlines(i, 0.25, bar_end, color="#55A868", lw=4.0, zorder=1)
+        ax.text(bar_end + 0.022, i, f"{int(motif_links.iloc[i])}", ha="left", va="center", fontsize=7.0, color="#444444")
+        supported_samples = {
+            s.strip()
+            for s in str(cand["samples_with_motif_peak_in_window"].iloc[i]).split(";")
+            if s.strip() and s.strip().lower() != "nan"
+        }
+        n_supported = sum(sample in supported_samples for sample in sample_order)
+        ax.text(0.72, i, f"{n_supported}/5", ha="center", va="center", fontsize=7.0, color="#444444")
+        ax.hlines(i, 0.79, 1.02, color="#E6E6E6", lw=4.0, zorder=0)
+        promoter_end = 0.79 + 0.23 * float(promoter_links.iloc[i]) / max_promoter_links
         if promoter_links.iloc[i] > 0:
-            ax.scatter(0.82, i, marker="v", s=22, color="#333333", zorder=3)
-            ax.text(0.87, i, f"{int(promoter_links.iloc[i])}", ha="left", va="center", fontsize=6.5)
-        else:
-            ax.text(0.87, i, "0", ha="left", va="center", fontsize=6.5, color="#777777")
+            ax.hlines(i, 0.79, promoter_end, color="#D98C5F", lw=4.0, zorder=1)
+        ax.text(promoter_end + 0.022, i, f"{int(promoter_links.iloc[i])}", ha="left", va="center", fontsize=7.0, color="#444444")
     for boundary in (1.5, 10.5):
-        ax.axhline(boundary, xmin=0.0, xmax=0.94, color="#D8D8D8", lw=0.7, zorder=4)
-    ax.text(0.04, -0.64, "Motif-peak\nlinks (n)", ha="left", va="center", fontsize=6.7, fontweight="bold", linespacing=0.95)
-    ax.text(0.56, -0.64, "ATAC samples", ha="left", va="center", fontsize=6.7, fontweight="bold")
-    ax.text(0.80, -0.64, "Promoter-window\nlinks (n)", ha="left", va="center", fontsize=6.7, fontweight="bold", linespacing=0.95)
-    ax.set_yticks(y)
-    ax.set_yticklabels(cand["gene"], fontsize=7, fontstyle="italic")
+        ax.hlines(boundary, -0.28, 1.06, color="#C7C7C7", lw=0.9, zorder=4)
+    ax.text(0.145, -1.25, "Seed\nrecurrence", ha="center", va="center", fontsize=6.7, fontweight="bold", linespacing=0.95)
+    ax.text(0.25, -1.25, "Motif–peak\nlinks (n)", ha="left", va="center", fontsize=6.7, fontweight="bold", linespacing=0.95)
+    ax.text(0.72, -1.25, "ATAC\nsupport (n/5)", ha="center", va="center", fontsize=6.7, fontweight="bold", linespacing=0.95)
+    ax.text(0.79, -1.25, "Promoter-window\nlinks (n)", ha="left", va="center", fontsize=6.7, fontweight="bold", linespacing=0.95)
+    ax.set_yticks([])
     ax.invert_yaxis()
     ax.set_xticks([])
-    ax.tick_params(axis="y", length=0)
+    tier_centers = [(0.5, "Tier 1"), (6.0, "Tier 2"), (12.0, "Context-limited")]
+    for center, label in tier_centers:
+        ax.text(-0.08, center, label, ha="right", va="center", fontsize=6.4, color="#555555")
     for spine in ax.spines.values():
         spine.set_visible(False)
-    panel_label(ax, "b")
+    panel_label(ax, "b", x=-0.14, y=1.18)
 
     ax = fig.add_subplot(gs[1, :])
-    mat = cand.set_index("gene")[
-        [
-            "n_runs_detected",
-            "weighted_importance",
-            "partial_pearson_r",
-            "stress_ap1_expression_delta",
-            "n_ucsc_score_ge_300_motif_peak_links_in_window",
-            "n_promoter_2kb_motif_peak_links",
-            "n_samples_with_motif_peak_in_window",
-        ]
-    ].copy()
-    display = zscore_columns(mat)
-    display.columns = ["Seeds", "Importance", "Partial r\n(relative z)", "Stress delta", "Motif-peak\nlinks (n)", "Promoter-window\nlinks (n)", "ATAC samples"]
-    sns.heatmap(
-        display,
-        cmap="vlag",
-        center=0,
-        linewidths=0.35,
-        linecolor="white",
-        cbar_kws={"label": "Column z (display)"},
-        ax=ax,
-    )
+    ax.set_title("State/network evidence matrix", loc="left", fontsize=9, pad=10)
+    mat = cand.set_index("gene")[[
+        "weighted_importance",
+        "partial_pearson_r",
+        "stress_ap1_expression_delta",
+    ]].copy()
+    raw_labels = {
+        "weighted_importance": mat["weighted_importance"].map(lambda value: f"{value:.2f}"),
+        "partial_pearson_r": mat["partial_pearson_r"].map(lambda value: f"{value:.3f}"),
+        "stress_ap1_expression_delta": mat["stress_ap1_expression_delta"].map(lambda value: f"{value:.3f}"),
+    }
+    # Use a sequential scale for non-negative GRNBoost2 importance and fixed,
+    # zero-centred scales for the two signed quantities. This preserves the
+    # meaning of the raw values rather than converting every column to a
+    # common, misleading red-blue z-score.
+    column_specs = [
+        ("weighted_importance", "GRNBoost2\nimportance", plt.get_cmap("YlOrRd"), mpl_colors.Normalize(vmin=0.30, vmax=1.50), ["0.30", "0.90", "1.50"]),
+        ("partial_pearson_r", "Partial BACH1\ncorrelation", plt.get_cmap("vlag"), mpl_colors.TwoSlopeNorm(vmin=-0.05, vcenter=0.0, vmax=0.05), ["−0.05", "0", "0.05"]),
+        ("stress_ap1_expression_delta", "Stress-state\nenrichment", plt.get_cmap("vlag"), mpl_colors.TwoSlopeNorm(vmin=-0.20, vcenter=0.0, vmax=0.20), ["−0.20", "0", "0.20"]),
+    ]
+    n_rows = len(mat)
+    ax.set_xlim(-0.55, len(column_specs) + 0.15)
+    ax.set_ylim(n_rows + 0.35, -1.55)
+    ax.axis("off")
+    row_tiers = [min(3, TIER_ORDER.get(str(value), 3)) for value in cand["candidate_tier"]]
+    tier_colors = {1: "#E9B9B5", 2: "#EFCBAE", 3: "#D9CDE6"}
+    for i, (gene, tier_rank) in enumerate(zip(mat.index, row_tiers)):
+        ax.text(-0.10, i + 0.5, gene, ha="right", va="center", fontsize=8, fontstyle="italic", color="#222222")
+        ax.add_patch(Rectangle((-0.06, i), 0.035, 1.0, facecolor=tier_colors[tier_rank], edgecolor="none", clip_on=False))
+    for j, (key, title, cmap, norm, scale_labels) in enumerate(column_specs):
+        values = mat[key].to_numpy(dtype=float)
+        for i, value in enumerate(values):
+            facecolor = cmap(norm(value))
+            r, g, b = mpl_colors.to_rgb(facecolor)
+            luminance = 0.299 * r + 0.587 * g + 0.114 * b
+            text_color = "white" if luminance < 0.52 else "#333333"
+            ax.add_patch(Rectangle((j, i), 1.0, 1.0, facecolor=facecolor, edgecolor="white", linewidth=0.45))
+            ax.text(j + 0.5, i + 0.5, raw_labels[key].iloc[i], ha="center", va="center", fontsize=6.4, color=text_color)
+        ax.text(j + 0.5, -1.28, title, ha="center", va="center", fontsize=7.5, fontweight="bold", linespacing=0.95)
+        gradient = np.linspace(norm.vmin, norm.vmax, 128)[None, :]
+        ax.imshow(gradient, aspect="auto", cmap=cmap, norm=norm, extent=(j + 0.18, j + 0.82, -0.76, -0.57), interpolation="nearest", zorder=3)
+        ax.text(j + 0.18, -0.49, scale_labels[0], ha="left", va="top", fontsize=5.8, color="#555555")
+        ax.text(j + 0.82, -0.49, scale_labels[-1], ha="right", va="top", fontsize=5.8, color="#555555")
+        if len(scale_labels) == 3:
+            ax.text(j + 0.50, -0.49, scale_labels[1], ha="center", va="top", fontsize=5.8, color="#555555")
     for boundary in (2, 11):
-        ax.axhline(boundary, color="#D8D8D8", lw=0.8)
-    ax.set_xlabel("")
-    ax.set_ylabel("")
-    ax.tick_params(axis="x", labelrotation=25, labelsize=8)
-    ax.tick_params(axis="y", labelrotation=0, labelsize=8)
-    for tick in ax.get_yticklabels():
-        tick.set_fontstyle("italic")
-    panel_label(ax, "c", x=-0.05)
+        ax.plot([-0.06, len(column_specs)], [boundary, boundary], color="#BFC3C7", lw=1.0, zorder=4)
+    panel_label(ax, "c", x=-0.06, y=1.05)
 
     save_all(fig, "Figure5_multiomic_candidate_prioritisation")
 

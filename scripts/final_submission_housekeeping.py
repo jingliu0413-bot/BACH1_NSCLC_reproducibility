@@ -11,9 +11,13 @@ from openpyxl import load_workbook
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "outputs" / "manuscript_submission_20260914"
 
-TIER_REPLACEMENTS = {
-    "Tier 1: 5/5 seeds + 5-sample ATAC": "Tier 1: 5/5 seeds + 5-sample ATAC + promoter support",
-    "Tier 2: 4/5 seeds + promoter ATAC": "Tier 2: 4/5 seeds + 5-sample ATAC + promoter support",
+TIER_CANONICAL = {
+    "Tier 1: 5/5 seeds + 5-sample ATAC + promoter support + promoter support":
+        "Tier 1: 5/5 seeds + 5-sample ATAC + promoter support",
+    "Tier 1: 5/5 seeds + 5-sample ATAC":
+        "Tier 1: 5/5 seeds + 5-sample ATAC + promoter support",
+    "Tier 2: 4/5 seeds + promoter ATAC":
+        "Tier 2: 4/5 seeds + 5-sample ATAC + promoter support",
 }
 
 SHEET_RENAMES = {
@@ -67,7 +71,9 @@ def replace_text_file(path: Path) -> None:
     if not path.exists():
         return
     text = path.read_text()
-    for old, new in {**TIER_REPLACEMENTS, **SHEET_RENAMES}.items():
+    for old, new in SHEET_RENAMES.items():
+        text = text.replace(old, new)
+    for old, new in TIER_CANONICAL.items():
         text = text.replace(old, new)
     path.write_text(text)
 
@@ -82,9 +88,7 @@ def update_workbook(path: Path) -> None:
         for row in ws.iter_rows():
             for cell in row:
                 if isinstance(cell.value, str):
-                    value = cell.value
-                    for old, new in TIER_REPLACEMENTS.items():
-                        value = value.replace(old, new)
+                    value = TIER_CANONICAL.get(cell.value, cell.value)
                     if value != cell.value:
                         cell.value = value
 

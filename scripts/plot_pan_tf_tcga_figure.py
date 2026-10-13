@@ -76,16 +76,34 @@ def plot_main() -> None:
     grid = fig.add_gridspec(2, 2, height_ratios=[1.03, 1.0], width_ratios=[1.08, 0.92])
 
     ax = fig.add_subplot(grid[0, :])
-    y = np.arange(len(show))
-    colors = ["#C44E52" if name == "BACH1" else "#4C72B0" for name in show["tf"]]
+    y = np.arange(len(show), dtype=float)
+    y[10:] += 1.2
+    colors = [
+        "#C44E52" if name == "BACH1" else ("#ADB5BD" if name in comparators else "#4C72B0")
+        for name in show["tf"]
+    ]
     ax.barh(y, show["spearman_rho_with_hypoxia"], color=colors)
+    ax.axhline(9.75, color="0.82", lw=0.7)
+    ax.text(0.02, 10.45, "Selected comparators", fontsize=6.5, color="0.55", va="center")
     ax.set_yticks(y)
     ax.set_yticklabels(show["tf"], fontstyle="italic")
     ax.set_xlabel(r"TF-specific de-overlapped Spearman $\rho$ with hypoxia")
     ax.set_xlim(0, 1)
+    ax.set_ylim(-0.7, y[-1] + 0.6)
     ax.invert_yaxis()
     for i, row in enumerate(show.itertuples(index=False)):
-        ax.text(float(row.spearman_rho_with_hypoxia) + 0.01, i, f"rank {int(row.rank_by_rho_desc)}", va="center", fontsize=7, fontweight="bold" if row.tf == "BACH1" else "normal")
+        rank_text = f"rank {int(row.rank_by_rho_desc)}"
+        if row.tf == "BACH1":
+            rank_text += r"  |  $\rho$=" + f"{row.spearman_rho_with_hypoxia:.3f}"
+        ax.text(
+            float(row.spearman_rho_with_hypoxia) + 0.01,
+            y[i],
+            rank_text,
+            va="center",
+            fontsize=7,
+            fontweight="bold" if row.tf == "BACH1" else "normal",
+        )
+    ax.set_title("BACH1 ranks among leading hypoxia-associated TF regulon scores", loc="left", fontsize=9, pad=11)
     ax.spines[["top", "right"]].set_visible(False)
     panel(ax, "a")
 
@@ -100,10 +118,19 @@ def plot_main() -> None:
     xs = np.linspace(np.nanpercentile(x, 1), np.nanpercentile(x, 99), 100)
     ax.plot(xs, slope * xs + intercept, color="#222222", lw=1.1)
     row = correlations[(correlations["cohort"].eq("combined")) & (correlations["comparison"].eq("both_no_shared"))].iloc[0]
-    ax.text(0.04, 0.96, rf"$\rho$={row.spearman_rho:.3f}" + "\n" + f"Holm {format_p(row.spearman_holm_p)}", transform=ax.transAxes, ha="left", va="top", fontsize=8)
+    ax.text(
+        0.04,
+        0.96,
+        f"n={int(row.n_patients):,}; " + rf"$\rho$={row.spearman_rho:.3f}" + "\n" + f"Holm {format_p(row.spearman_holm_p)}",
+        transform=ax.transAxes,
+        ha="left",
+        va="top",
+        fontsize=8,
+    )
     ax.set_xlabel("TCGA de-overlapped DoRothEA BACH1 score")
     ax.set_ylabel("TCGA de-overlapped Hallmark hypoxia score")
     ax.legend(frameon=False, loc="lower right")
+    ax.set_title("TCGA reproduces a weaker tumour-level BACH1-hypoxia association", loc="left", fontsize=8.5, pad=10)
     ax.spines[["top", "right"]].set_visible(False)
     panel(ax, "b")
 
@@ -121,12 +148,13 @@ def plot_main() -> None:
     for i, (label, row) in enumerate(rows):
         ax.errorbar(row.beta, i, xerr=[[row.beta - row.ci_low], [row.ci_high - row.beta]], fmt="o", color="#333333", capsize=2, lw=1.1)
         ax.text(row.ci_high + 0.015, i, format_p(row.p_value), va="center", fontsize=7)
-    ax.axvline(0, color="0.7", lw=0.8)
+    ax.axvline(0, color="0.82", lw=0.7, ls="--", zorder=0)
     ax.set_yticks(y)
-    ax.set_yticklabels([label for label, _ in rows])
-    ax.set_xlabel("Adjusted standardized beta")
-    ax.set_xlim(0, 0.48)
+    ax.set_yticklabels([f"{label} (n={int(row.n_patients)})" for label, row in rows])
+    ax.set_xlabel(r"Adjusted standardized $\beta$")
+    ax.set_xlim(-0.05, 0.48)
     ax.invert_yaxis()
+    ax.set_title("The TCGA association persists after covariate adjustment", loc="left", fontsize=8.5, pad=10)
     ax.spines[["top", "right"]].set_visible(False)
     panel(ax, "c")
 
@@ -156,12 +184,13 @@ def plot_cohort_supplement() -> None:
     ax.set_yticks(y)
     ax.set_yticklabels([f"{row.dataset} (n={int(row.n_patients)})" for row in cohort.itertuples()])
     ax.set_xlabel(r"Patient-level Spearman $\rho$")
-    ax.set_title("Supplementary Figure 4. scRNA-seq cohort-stratified association", fontsize=10, fontweight="bold")
-    ax.set_xlim(-1, 1)
+    ax.set_title("Cohort-stratified BACH1–hypoxia covariance", fontsize=10, fontweight="bold")
+    ax.set_xlim(-1, 1.28)
     ax.invert_yaxis()
     ax.spines[["top", "right"]].set_visible(False)
     for i, row in enumerate(cohort.itertuples()):
         ax.text(0.03, i, format_p(row.p_value), transform=ax.get_yaxis_transform(), va="center", fontsize=7)
+        ax.text(1.23, i, rf"$\rho$={row.rho:.3f}", ha="right", va="center", fontsize=7)
     fig.savefig(OUT / "Supplementary_Figure4_scrna_cohort_split.pdf", bbox_inches="tight")
     fig.savefig(OUT / "Supplementary_Figure4_scrna_cohort_split.png", dpi=300, bbox_inches="tight")
     plt.close(fig)

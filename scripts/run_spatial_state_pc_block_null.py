@@ -10,11 +10,12 @@ block-restricted null rather than a full variogram-preserving surrogate.
 
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy import sparse
+from scipy.spatial import cKDTree
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,12 +35,30 @@ N_PCS_BY_COMPARISON = {
     "Stress_AP1_vs_hypoxia": 2,
 }
 
-spec = importlib.util.spec_from_file_location(
-    "spatial_core", ROOT / "scripts" / "run_spatial_state_context_analysis.py"
-)
-spatial_core = importlib.util.module_from_spec(spec)
-assert spec.loader is not None
-spec.loader.exec_module(spatial_core)
+def six_neighbour_graph(coordinates: np.ndarray) -> sparse.csr_matrix:
+    n_spots = len(coordinates)
+    k = min(7, n_spots)
+    _, neighbours = cKDTree(coordinates).query(coordinates, k=k)
+    rows = np.repeat(np.arange(n_spots), k - 1)
+    columns = neighbours[:, 1:].reshape(-1)
+    values = np.full(len(rows), 1.0 / max(k - 1, 1))
+    return sparse.csr_matrix((values, (rows, columns)), shape=(n_spots, n_spots))
+
+
+def bivariate_moran(x: np.ndarray, y: np.ndarray, weights: sparse.csr_matrix) -> float:
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    valid = np.isfinite(x) & np.isfinite(y)
+    if valid.sum() < 10:
+        return float("nan")
+    if not valid.all():
+        raise ValueError("Scores must be finite before spatial graph construction")
+    x_centered = x - np.mean(x)
+    y_centered = y - np.mean(y)
+    denominator = np.sqrt(np.sum(x_centered**2) * np.sum(y_centered**2))
+    if denominator == 0:
+        return float("nan")
+    return float((len(x) / weights.sum()) * np.dot(x_centered, weights @ y_centered) / denominator)
 
 
 def residualize(y: np.ndarray, covariates: pd.DataFrame) -> np.ndarray:
@@ -89,7 +108,7 @@ def block_permutation(
     rng: np.random.Generator,
     n_permutations: int = N_PERMUTATIONS,
 ) -> tuple[float, float, float, float, float, float]:
-    observed = spatial_core.bivariate_moran(x, y, weights)
+    observed = bivariate_moran(x, y, weights)
     null = np.empty(n_permutations, dtype=float)
     groups = [np.flatnonzero(block_ids == block) for block in pd.unique(block_ids)]
     for i in range(n_permutations):
@@ -97,7 +116,7 @@ def block_permutation(
         for idx in groups:
             if len(idx) > 1:
                 y_perm[idx] = y_perm[rng.permutation(idx)]
-        null[i] = spatial_core.bivariate_moran(x, y_perm, weights)
+        null[i] = bivariate_moran(x, y_perm, weights)
     p_positive = (1 + np.sum(null >= observed)) / (n_permutations + 1)
     return (
         float(observed),
@@ -113,6 +132,7 @@ def main() -> None:
     df = pd.read_csv(SPOT_TABLE)
     df["log_total_counts"] = np.log1p(df["raw_total_counts"].astype(float))
     rows = []
+    raw_rows = []
     sensitivity_rows = []
     variance_rows = []
 
@@ -131,7 +151,41 @@ def main() -> None:
         original_index = group.index.to_numpy()
         group = group.reset_index(drop=True)
         coordinates = group[["array_row", "array_col"]].to_numpy(dtype=float)
-        weights = spatial_core.six_neighbour_graph(coordinates)
+        weights = six_neighbour_graph(coordinates)
+
+        # Figure 5d uses the raw score pair. The state-PC residualized pair is
+        # reserved for the supplementary block-size sensitivity analysis.
+        raw_block_ids = (
+            (group["array_row"] // PRIMARY_BLOCK_SIZE).astype(str)
+            + "_"
+            + (group["array_col"] // PRIMARY_BLOCK_SIZE).astype(str)
+        ).to_numpy()
+        raw_rng = np.random.default_rng(RANDOM_SEED)
+        raw_moran, raw_p, raw_null_mean, raw_null_sd, raw_q025, raw_q975 = block_permutation(
+            group["DOROTHEA_BACH1"].to_numpy(dtype=float),
+            group["HALLMARK_HYPOXIA"].to_numpy(dtype=float),
+            weights,
+            raw_block_ids,
+            raw_rng,
+        )
+        raw_rows.append(
+            {
+                "sample": sample,
+                "comparison": "DoRothEA_vs_hypoxia",
+                "n_spots": len(group),
+                "bivariate_moran_I_raw": raw_moran,
+                "block_permutation_p_positive": raw_p,
+                "block_null_mean": raw_null_mean,
+                "block_null_sd": raw_null_sd,
+                "block_null_q025": raw_q025,
+                "block_null_q975": raw_q975,
+                "block_size_array_coordinates": PRIMARY_BLOCK_SIZE,
+                "n_permutations": N_PERMUTATIONS,
+                "random_seed": RANDOM_SEED,
+                "inference_note": "Raw-score section-level block-restricted null for Figure 5d; not a patient-level inferential test.",
+            }
+        )
+
         for comparison, left, right in [
             ("DoRothEA_vs_hypoxia", "DOROTHEA_BACH1", "HALLMARK_HYPOXIA"),
             ("Stress_AP1_vs_hypoxia", "Stress_AP1", "HALLMARK_HYPOXIA"),
@@ -217,6 +271,7 @@ def main() -> None:
 
     out = pd.DataFrame(rows)
     out.to_csv(OUT / "GSE292299_spatial_state_pc_block_null.csv", index=False)
+    pd.DataFrame(raw_rows).to_csv(OUT / "GSE292299_spatial_raw_block_null.csv", index=False)
     pd.DataFrame(sensitivity_rows).to_csv(
         OUT / "GSE292299_spatial_block_size_sensitivity.csv", index=False
     )

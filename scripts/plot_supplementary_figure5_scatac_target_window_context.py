@@ -67,8 +67,8 @@ def draw_workflow(ax, summary: dict) -> None:
     steps = [
         ("Tumour\nscATAC peaks", COL["blue_soft"]),
         ("BACH1-family\nmotifs", COL["teal_soft"]),
-        ("TSS +/-10 kb\nlinkage", COL["gold_soft"]),
-        ("Target-window\nsummary", COL["rose_soft"]),
+        ("TSS ±10 kb\nproximity analysis", COL["gold_soft"]),
+        ("Candidate-level\nproximity summary", COL["rose_soft"]),
     ]
     x0s = np.linspace(0.06, 0.76, len(steps))
     for i, (label, color) in enumerate(steps):
@@ -99,8 +99,8 @@ def draw_workflow(ax, summary: dict) -> None:
             )
     note = (
         f"{summary['n_atac_samples']} samples; "
-        f"{summary['n_motif_positive_sample_specific_peaks_in_target_windows']:,} motif-positive peaks; "
-        f"{summary['n_bach1_targets_with_atac_motif_support_in_window']}/{summary['n_targets_with_gencode_coordinates']} mapped targets"
+        f"{summary['n_motif_positive_sample_specific_peaks_in_target_windows']:,} unique motif-positive peaks; "
+        f"{summary['n_bach1_targets_with_atac_motif_support_in_window']}/{summary['n_targets_with_gencode_coordinates']} mapped candidates at score ≥300"
     )
     ax.text(0.06, 0.23, note, ha="left", va="center", fontsize=7, color=COL["grey"], transform=ax.transAxes)
 
@@ -115,9 +115,21 @@ def plot_qc(ax, qc: pd.DataFrame) -> None:
     ax.set_xticks(x)
     ax.set_xticklabels(df["sample"], fontsize=7)
     ax.set_ylabel("cells / median peak\nfragments (x10^3)")
+    ax.set_ylim(0, max(cells.max(), peak_frag.max()) * 1.28)
+    ax.set_title("scATAC-seq sample summary", loc="left", fontsize=8, pad=2)
     ax.grid(axis="y", color=COL["light"], linewidth=0.6)
     ax.set_axisbelow(True)
-    ax.legend(frameon=False, fontsize=6, loc="upper right")
+    ax.legend(
+        handles=ax.get_legend_handles_labels()[0],
+        labels=["Cells (x10^3)", "Median peak fragments/cell (x10^3)"],
+        frameon=False,
+        fontsize=5.8,
+        loc="upper left",
+        bbox_to_anchor=(0.18, 0.98),
+        ncol=2,
+        handletextpad=0.25,
+        columnspacing=0.8,
+    )
     despine(ax)
 
 
@@ -126,14 +138,18 @@ def plot_thresholds(ax, thresholds: pd.DataFrame) -> None:
     x = pd.to_numeric(df["ucsc_motif_score_threshold"], errors="coerce")
     y_window = pd.to_numeric(df["n_target_genes_supported_in_window"], errors="coerce")
     y_prom = pd.to_numeric(df["n_target_genes_supported_promoter_2kb"], errors="coerce")
-    ax.plot(x, y_window, color=COL["blue"], marker="o", ms=4, lw=1.3, label="TSS +/-10 kb")
-    ax.plot(x, y_prom, color=COL["teal"], marker="o", ms=4, lw=1.3, label="promoter +/-2 kb")
+    ax.plot(x, y_window, color=COL["blue"], marker="o", ms=4, lw=1.3, label="TSS ±10 kb")
+    ax.plot(x, y_prom, color=COL["teal"], marker="o", ms=4, lw=1.3, label="promoter ±2 kb")
     for xi, yi in zip(x, y_window):
-        ax.text(xi, yi + 1.0, f"{int(yi)}/45", ha="center", fontsize=6)
+        if int(yi) == 44:
+            ax.text(xi + 6, yi - 0.5, f"{int(yi)}/45", ha="left", va="top", fontsize=6)
+        else:
+            ax.text(xi, yi + 1.0, f"{int(yi)}/45", ha="center", fontsize=6)
     ax.set_ylim(0, 48)
     ax.set_xticks(list(x))
     ax.set_xlabel("UCSC score threshold")
-    ax.set_ylabel("supported mapped targets")
+    ax.set_ylabel("Candidate genes with proximal support (n)")
+    ax.set_title("Candidate support across motif-score thresholds", loc="left", fontsize=8, pad=2)
     ax.grid(axis="y", color=COL["light"], linewidth=0.6)
     ax.set_axisbelow(True)
     ax.legend(frameon=False, fontsize=6, loc="lower left")
@@ -151,8 +167,10 @@ def plot_motif_models(ax, links: pd.DataFrame) -> None:
     colors = [COL["teal"], COL["blue"]][: len(df)]
     ax.barh(y, df["n_peak_gene_links"], color=colors, height=0.58)
     ax.set_yticks(y)
-    ax.set_yticklabels(df["motif_name"] + "\n" + df["motif_model"], fontsize=7)
-    ax.set_xlabel("target-window peak-gene links")
+    display_name = df["motif_name"].replace({"Bach1::Mafk": "BACH1::MafK"})
+    ax.set_yticklabels(display_name + "\n" + df["motif_model"], fontsize=7)
+    ax.set_xlabel("motif–peak–candidate proximity links")
+    ax.set_title("Proximity links by BACH1-family motif model", loc="left", fontsize=8, pad=2)
     ax.grid(axis="x", color=COL["light"], linewidth=0.6)
     ax.set_axisbelow(True)
     for yi, value in zip(y, df["n_peak_gene_links"]):
@@ -189,14 +207,35 @@ def plot_candidate_bubble(ax, targets: pd.DataFrame) -> None:
         linewidth=0.5,
     )
     ax.set_yticks(y)
-    ax.set_yticklabels(df["gene"], fontsize=6.5)
-    ax.set_xlabel("target-window motif-peak links")
+    ax.set_yticklabels(df["gene"], fontsize=7.2)
+    ax.set_xlabel("motif–peak–candidate proximity links")
+    ax.set_title("Recurrent candidates by proximal motif links", loc="left", fontsize=8, pad=2)
     ax.grid(axis="x", color=COL["light"], linewidth=0.6)
     ax.set_axisbelow(True)
     cb = plt.colorbar(sc, ax=ax, fraction=0.045, pad=0.02)
-    cb.set_label("closest peak\n(kb to TSS)", fontsize=6)
+    cb.set_label("absolute closest peak\ndistance (kb to TSS)", fontsize=6)
     cb.ax.tick_params(labelsize=5.5, width=0.4)
     cb.outline.set_linewidth(0.4)
+    size_handles = [
+        plt.Line2D(
+            [0], [0], marker="o", color="none", markerfacecolor="#777777",
+            markeredgecolor="white", markersize=np.sqrt(26 + n * 22),
+            label=str(n),
+        )
+        for n in (1, 3, 5)
+    ]
+    ax.legend(
+        handles=size_handles,
+        title="Size: ATAC samples",
+        frameon=False,
+        fontsize=5.4,
+        title_fontsize=5.6,
+        loc="lower right",
+        bbox_to_anchor=(0.99, 0.03),
+        ncol=3,
+        handletextpad=0.25,
+        columnspacing=0.8,
+    )
     despine(ax)
     df.to_csv(SRC_DIR / "supplementary_figure5_panel_e_candidate_target_support.csv", index=False)
 
@@ -213,8 +252,9 @@ def plot_example_loci(ax, links: pd.DataFrame, targets: pd.DataFrame) -> None:
     order = chosen[::-1]
     y_map = {gene: i for i, gene in enumerate(order)}
     colors = {"BACH1": COL["blue"], "Bach1::Mafk": COL["teal"]}
+    display_names = {"BACH1": "BACH1", "Bach1::Mafk": "BACH1::MafK"}
     for gene, yi in y_map.items():
-        ax.hlines(yi, -10, 10, color=COL["light"], lw=1.0)
+        ax.hlines(yi, 0, 10, color=COL["light"], lw=1.0)
         ax.plot(0, yi, marker="|", color=COL["dark"], ms=9, mew=1.0)
     for row in sub.itertuples(index=False):
         x = float(row.distance_to_tss) / 1000
@@ -233,15 +273,26 @@ def plot_example_loci(ax, links: pd.DataFrame, targets: pd.DataFrame) -> None:
     ax.axvline(0, color=COL["grey"], lw=0.8, ls="--")
     ax.set_yticks(range(len(order)))
     ax.set_yticklabels(order, fontsize=6.5)
-    ax.set_xlim(-10.5, 10.5)
-    ax.set_xlabel("distance from TSS (kb)")
+    ax.set_xlim(-0.2, 10.5)
+    ax.set_xlabel("absolute distance from TSS (kb)")
+    ax.set_title("Motif-overlapping peak distances from TSS", loc="left", fontsize=8, pad=2)
     ax.grid(axis="x", color=COL["light"], linewidth=0.6)
     ax.set_axisbelow(True)
+    ax.set_ylim(-0.5, len(order) - 0.5 + 0.9)
     handles = [
-        plt.Line2D([0], [0], marker="o", color="none", markerfacecolor=color, markeredgecolor="white", label=label, markersize=5)
+        plt.Line2D([0], [0], marker="o", color="none", markerfacecolor=color, markeredgecolor="white", label=display_names[label], markersize=5)
         for label, color in colors.items()
     ]
-    ax.legend(handles=handles, frameon=False, fontsize=6, loc="upper right")
+    ax.legend(
+        handles=handles,
+        frameon=False,
+        fontsize=5.8,
+        loc="upper left",
+        bbox_to_anchor=(0.0, 1.0),
+        ncol=2,
+        handletextpad=0.25,
+        columnspacing=0.8,
+    )
     despine(ax)
     sub.to_csv(SRC_DIR / "supplementary_figure5_panel_f_example_loci.csv", index=False)
 
@@ -260,8 +311,8 @@ def main() -> None:
     qc.to_csv(SRC_DIR / "supplementary_figure5_panel_b_scatac_sample_qc.csv", index=False)
     thresholds.to_csv(SRC_DIR / "supplementary_figure5_panel_c_ucsc_score_thresholds.csv", index=False)
 
-    fig = plt.figure(figsize=(10.8, 7.6))
-    gs = GridSpec(3, 3, figure=fig, height_ratios=[0.70, 1.0, 1.28], width_ratios=[1.0, 1.0, 1.2], hspace=0.52, wspace=0.48)
+    fig = plt.figure(figsize=(10.8, 7.8))
+    gs = GridSpec(3, 3, figure=fig, height_ratios=[0.70, 1.0, 1.28], width_ratios=[1.0, 1.0, 1.2], hspace=0.60, wspace=0.54)
 
     ax_a = fig.add_subplot(gs[0, :])
     draw_workflow(ax_a, summary)
@@ -269,23 +320,23 @@ def main() -> None:
 
     ax_b = fig.add_subplot(gs[1, 0])
     plot_qc(ax_b, qc)
-    panel_label(ax_b, "b", x=0.02, y=0.98)
+    panel_label(ax_b, "b", x=-0.08, y=1.19)
 
     ax_c = fig.add_subplot(gs[1, 1])
     plot_thresholds(ax_c, thresholds)
-    panel_label(ax_c, "c")
+    panel_label(ax_c, "c", x=-0.08, y=1.19)
 
     ax_d = fig.add_subplot(gs[1, 2])
     plot_motif_models(ax_d, links)
-    panel_label(ax_d, "d", x=-0.06)
+    panel_label(ax_d, "d", x=-0.08, y=1.19)
 
     ax_e = fig.add_subplot(gs[2, :2])
     plot_candidate_bubble(ax_e, targets)
-    panel_label(ax_e, "e", x=-0.035)
+    panel_label(ax_e, "e", x=-0.08, y=1.19)
 
     ax_f = fig.add_subplot(gs[2, 2])
     plot_example_loci(ax_f, links, targets)
-    panel_label(ax_f, "f", x=-0.06)
+    panel_label(ax_f, "f", x=-0.08, y=1.19)
 
     for ext in ("pdf", "png", "svg"):
         path = FIG_DIR / f"supplementary_figure5_scatac_target_window_context.{ext}"

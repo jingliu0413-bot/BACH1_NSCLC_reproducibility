@@ -1,0 +1,8 @@
+sample,comparison,pc,variance_explained,cumulative_variance_explained,n_state_features,state_pc_source,n_pcs_used_for_residualization
+pooled_sections,DoRothEA_vs_hypoxia,PC1,0.3808799356490528,0.3808799356490528,4,Stress_AP1;Epithelial_core;AT2_like;Ciliated,3
+pooled_sections,DoRothEA_vs_hypoxia,PC2,0.24653921905544576,0.6274191547044986,4,Stress_AP1;Epithelial_core;AT2_like;Ciliated,3
+pooled_sections,DoRothEA_vs_hypoxia,PC3,0.21311941554185213,0.8405385702463507,4,Stress_AP1;Epithelial_core;AT2_like;Ciliated,3
+pooled_sections,DoRothEA_vs_hypoxia,PC4,0.1594614297536493,1.0,4,Stress_AP1;Epithelial_core;AT2_like;Ciliated,3
+pooled_sections,Stress_AP1_vs_hypoxia,PC1,0.41042368007499047,0.41042368007499047,3,Epithelial_core;AT2_like;Ciliated,2
+pooled_sections,Stress_AP1_vs_hypoxia,PC2,0.3263635512768678,0.7367872313518582,3,Epithelial_core;AT2_like;Ciliated,2
+pooled_sections,Stress_AP1_vs_hypoxia,PC3,0.2632127686481416,0.9999999999999998,3,Epithelial_core;AT2_like;Ciliated,2

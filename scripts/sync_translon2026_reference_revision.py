@@ -31,6 +31,8 @@ TABLE_DIR = OUT / "tables"
 FIG_DIR = OUT / "figures"
 PRIMARY_H5AD = ROOT / "out/bach1_malignant_epithelial_primary/nsclc_malignant_epithelial_primary_bach1_analysis_object.h5ad"
 EPITHELIAL_UMAP = ROOT / "out/nature_story_4figures_10kb/source_data/figure_s1_panel_b_epithelial_cnv_burden_umap.csv.gz"
+PRIMARY_METADATA = ROOT / "out/bach1_malignant_epithelial_primary/tables/nsclc_malignant_epithelial_primary_bach1_cell_metadata.csv.gz"
+DEOVERLAP_CELL_SCORES = ROOT / "out/external_bach1_activity_robustness/tables/deoverlapped_dorothea_hypoxia_cell_scores.csv.gz"
 CONSENSUS_CANDIDATES = ROOT / "out/bach1_malignant_epithelial_consensus/tables/nsclc_malignant_epithelial_consensus_bach1_candidate_targets_integrated_evidence.csv"
 ATAC_SUPPORT = ROOT / "out/bach1_atac_motif_support_consensus_full_tf_5seed_stable_ge60_ucsc_bedmode_10kb/tables/pyscenic_bach1_targets_with_ucsc_jaspar2026_atac_support.csv"
 WORKBOOKS = [
@@ -42,16 +44,16 @@ STATE_ORDER = ["Stress_AP1", "Ciliated", "Epithelial_core", "Proliferative", "AT
 STATE_DISPLAY = {
     "Stress_AP1": "Stress-associated",
     "Ciliated": "Ciliated-like",
-    "Epithelial_core": "Epithelial_core",
+    "Epithelial_core": "Epithelial core",
     "Proliferative": "Proliferative",
-    "AT2_like": "AT2_like",
+    "AT2_like": "AT2-like",
     "Other": "Other",
 }
 CNV_COLORS = {
-    "Consensus CNV malignant": "#4C72B0",
-    "Single-method CNV candidate": "#55A868",
-    "Author malignant / no CNV support": "#C44E52",
-    "Not malignant by CNV": "#B8B8B8",
+    "CNV-consensus support": "#6B8EBC",
+    "Single-method CNV support": "#8CC39A",
+    "Author malignant / no CNV support": "#D98686",
+    "No CNV support": "#C9CED6",
 }
 
 
@@ -156,8 +158,8 @@ def build_candidate_tier_matrix(obs: pd.DataFrame | None = None) -> pd.DataFrame
         n_runs = int(row["n_runs_detected"])
         n_samples = float(row["n_samples_with_motif_peak_in_window"])
         has_promoter = bool(row["promoter_support"])
-        if n_runs == 5 and n_samples >= 5:
-            return "Tier 1: 5/5 seeds + 5-sample ATAC"
+        if n_runs == 5 and n_samples >= 5 and has_promoter:
+            return "Tier 1: 5/5 seeds + 5-sample ATAC + promoter support"
         if n_runs >= 4 and n_samples >= 5 and has_promoter:
             return "Tier 2: 4/5 seeds + promoter ATAC"
         if n_runs >= 4 and n_samples > 0:
@@ -166,7 +168,7 @@ def build_candidate_tier_matrix(obs: pd.DataFrame | None = None) -> pd.DataFrame
 
     merged["candidate_tier"] = merged.apply(tier, axis=1)
     tier_order = {
-        "Tier 1: 5/5 seeds + 5-sample ATAC": 1,
+        "Tier 1: 5/5 seeds + 5-sample ATAC + promoter support": 1,
         "Tier 2: 4/5 seeds + promoter ATAC": 2,
         "Context-limited: recurrent with limited ATAC": 3,
         "Context-limited: recurrent without mapped ATAC": 4,
@@ -236,7 +238,72 @@ def build_state_malignancy_audit(obs: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def plot_supplementary_figure1(state_audit: pd.DataFrame) -> None:
+def load_supplementary_cnv_audit_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Load cell-level metadata for patient-aware CNV and score sensitivities."""
+    meta = pd.read_csv(PRIMARY_METADATA, usecols=[
+        "Unnamed: 0", "patient", "dataset", "cnv_consensus_call", "epi_marker_only_broad_class"
+    ])
+    score = pd.read_csv(DEOVERLAP_CELL_SCORES, usecols=[
+        "Unnamed: 0",
+        "DOROTHEA_BACH1_ABC_TF_ACTIVITY_NO_HYPOXIA_OVERLAP__mean_z",
+        "HALLMARK_HYPOXIA_NO_DOROTHEA_OVERLAP__mean_z",
+    ])
+    meta = meta.merge(score, on="Unnamed: 0", how="inner", validate="one_to_one")
+    meta["state_key"] = meta["epi_marker_only_broad_class"].map(simplify_state)
+    meta["state_display"] = meta["state_key"].map(STATE_DISPLAY).fillna("Other")
+    meta["cnv_consensus"] = meta["cnv_consensus_call"].astype(str).eq("consensus_malignant_epithelial")
+
+    state_order = [STATE_DISPLAY[s] for s in STATE_ORDER]
+    rows = []
+    for (patient, state), sub in meta.groupby(["patient", "state_display"], sort=False):
+        if len(sub) < 10:
+            continue
+        rows.append({
+            "patient": patient,
+            "state": state,
+            "n_cells": len(sub),
+            "cnv_fraction": float(sub["cnv_consensus"].mean()),
+        })
+    patient_state = pd.DataFrame(rows)
+    if not patient_state.empty:
+        patient_state["state"] = pd.Categorical(patient_state["state"], categories=state_order, ordered=True)
+        patient_state = patient_state.sort_values(["state", "patient"])
+
+    restricted = meta.loc[meta["cnv_consensus"]].copy()
+    composition = (
+        restricted.groupby("patient", as_index=False)
+        .size()
+        .rename(columns={"size": "n_restricted_cells"})
+    )
+    composition["restricted_fraction"] = composition["n_restricted_cells"] / composition["n_restricted_cells"].sum()
+    composition = composition.sort_values("restricted_fraction", ascending=False)
+
+    scores = []
+    for label, sub in [("Primary", meta), ("Restricted", restricted)]:
+        by_patient = sub.groupby("patient")[[
+            "DOROTHEA_BACH1_ABC_TF_ACTIVITY_NO_HYPOXIA_OVERLAP__mean_z",
+            "HALLMARK_HYPOXIA_NO_DOROTHEA_OVERLAP__mean_z",
+        ]].mean()
+        if len(by_patient) >= 2:
+            x = by_patient.iloc[:, 0].rank(method="average").to_numpy()
+            y = by_patient.iloc[:, 1].rank(method="average").to_numpy()
+            rho = float(np.corrcoef(x, y)[0, 1])
+        else:
+            rho = np.nan
+        scores.append({"set": label, "n_cells": len(sub), "n_patients": by_patient.shape[0], "rho": rho})
+    score_sensitivity = pd.DataFrame(scores)
+    patient_state.to_csv(TABLE_DIR / "figure_s1_patient_state_cnv_audit.csv", index=False)
+    composition.to_csv(TABLE_DIR / "figure_s1_restricted_patient_composition.csv", index=False)
+    score_sensitivity.to_csv(TABLE_DIR / "figure_s1_score_sensitivity.csv", index=False)
+    return patient_state, composition, score_sensitivity
+
+
+def plot_supplementary_figure1(
+    state_audit: pd.DataFrame,
+    patient_state: pd.DataFrame,
+    composition: pd.DataFrame,
+    score_sensitivity: pd.DataFrame,
+) -> None:
     set_style()
     epi = pd.read_csv(EPITHELIAL_UMAP)
     epi["display_cnv"] = np.select(
@@ -245,22 +312,33 @@ def plot_supplementary_figure1(state_audit: pd.DataFrame) -> None:
             epi["cnv_consensus_call"].astype(str).eq("single_cnv_method_malignant_candidate"),
             epi["dataset"].astype(str).eq("GSE131907") & epi["sample_id"].astype(str).str.contains("LUNG_T", na=False),
         ],
-        ["Consensus CNV malignant", "Single-method CNV candidate", "Author malignant / no CNV support"],
-        default="Not malignant by CNV",
+        ["CNV-consensus support", "Single-method CNV support", "Author malignant / no CNV support"],
+        default="No CNV support",
     )
 
-    fig = plt.figure(figsize=(12.2, 7.2), constrained_layout=True)
-    gs = fig.add_gridspec(2, 2, height_ratios=[0.86, 1.0], width_ratios=[1.0, 1.25])
+    fig = plt.figure(figsize=(12.8, 8.2))
+    gs = fig.add_gridspec(
+        5, 2,
+        height_ratios=[0.62, 0.15, 1.0, 0.38, 1.12],
+        width_ratios=[1.0, 1.2],
+        left=0.06,
+        right=0.98,
+        bottom=0.11,
+        top=0.94,
+        hspace=0,
+        wspace=0.38,
+    )
 
     ax = fig.add_subplot(gs[0, :])
     ax.axis("off")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
+    ax.text(0.04, 1.02, "Malignant epithelial selection", fontsize=8, fontweight="semibold", va="bottom")
     boxes = [
-        (0.06, 0.58, 0.22, 0.22, "GSE131907\nAuthor malignant\nn=5,139", "#E8EEF7"),
-        (0.06, 0.18, 0.22, 0.22, "GSE274934\nCNV-supported/retained\nn=8,555", "#E7F3EA"),
-        (0.42, 0.42, 0.24, 0.24, "Primary malignant\nepithelial set\nn=13,694", "#F8E9E7"),
-        (0.75, 0.42, 0.20, 0.24, "Restricted CNV\nconsensus set\nn=4,906", "#F7E9C8"),
+        (0.06, 0.59, 0.22, 0.34, "GSE131907\nAuthor malignant\nn=5,139", "#E8EEF7"),
+        (0.06, 0.07, 0.22, 0.34, "GSE274934\nCNV-supported/retained\nn=8,555", "#E7F3EA"),
+        (0.42, 0.30, 0.24, 0.40, "Primary malignant\nepithelial set\nn=13,694", "#F8E9E7"),
+        (0.75, 0.30, 0.20, 0.40, "Restricted CNV-consensus\nsensitivity set\nn=4,906", "#F7E9C8"),
     ]
     for x, y, w, h, label, color in boxes:
         ax.add_patch(
@@ -268,44 +346,110 @@ def plot_supplementary_figure1(state_audit: pd.DataFrame) -> None:
                 (x, y),
                 w,
                 h,
-                boxstyle="round,pad=0.012,rounding_size=0.018",
+                boxstyle="round,pad=0,rounding_size=0.018",
                 facecolor=color,
                 edgecolor="#666666",
                 linewidth=0.8,
             )
         )
-        ax.text(x + w / 2, y + h / 2, label, ha="center", va="center", fontsize=8)
-    for start, end in [((0.28, 0.69), (0.42, 0.54)), ((0.28, 0.29), (0.42, 0.50)), ((0.66, 0.54), (0.75, 0.54))]:
-        ax.add_patch(FancyArrowPatch(start, end, arrowstyle="-|>", mutation_scale=10, lw=0.9, color="#666666"))
-    ax.text(0.50, 0.12, "Counts clarify the final 13,694-cell primary set and the 4,906-cell restricted sensitivity set.", ha="center", va="center", fontsize=7, color="#555555")
-    panel_label(ax, "a", x=0.0, y=0.96)
+        ax.text(x + w / 2, y + h / 2, label, ha="center", va="center", fontsize=8, linespacing=1.2)
+    for start, end in [((0.28, 0.76), (0.42, 0.58)), ((0.28, 0.24), (0.42, 0.42)), ((0.66, 0.50), (0.75, 0.50))]:
+        ax.add_patch(FancyArrowPatch(start, end, arrowstyle="-|>", mutation_scale=10, lw=0.9, color="#666666", shrinkA=0, shrinkB=0))
+    panel_label(ax, "a", x=0.0, y=1.02)
 
-    ax = fig.add_subplot(gs[1, 0])
+    ax = fig.add_subplot(gs[2, 0])
     for label, color in CNV_COLORS.items():
         sub = epi.loc[epi["display_cnv"].eq(label)]
         ax.scatter(sub["UMAP1"], sub["UMAP2"], s=0.8, alpha=0.55, color=color, linewidths=0, label=label, rasterized=True)
     ax.set_xlabel("UMAP 1")
     ax.set_ylabel("UMAP 2")
+    ax.set_title("CNV evidence classes", loc="left", fontsize=8, pad=2)
     ax.set_aspect("equal", adjustable="datalim")
-    ax.legend(frameon=False, loc="upper left", bbox_to_anchor=(0, -0.08), ncol=1, handletextpad=0.3)
+    ax.legend(
+        frameon=True,
+        facecolor="white",
+        edgecolor="none",
+        framealpha=0.86,
+        loc="upper left",
+        bbox_to_anchor=(0.02, 0.98),
+        ncol=1,
+        fontsize=7,
+        markerscale=3.0,
+        handletextpad=0.3,
+    )
     sns.despine(ax=ax)
     panel_label(ax, "b")
 
-    ax = fig.add_subplot(gs[1, 1])
+    ax = fig.add_subplot(gs[2, 1])
     plot = state_audit.copy()
+    plot["display_state"] = plot["state"].map(STATE_DISPLAY).fillna(plot["display_state"])
     plot["non_consensus_pct"] = 100 - plot["pct_with_cnv_consensus_call"]
     y = np.arange(len(plot))
-    ax.barh(y, plot["pct_with_cnv_consensus_call"], color="#4C72B0", label="CNV consensus")
-    ax.barh(y, plot["non_consensus_pct"], left=plot["pct_with_cnv_consensus_call"], color="#D0D0D0", label="Other primary-set cells")
+    ax.barh(y, plot["pct_with_cnv_consensus_call"], color="#4C72B0", label="CNV-consensus support")
+    ax.barh(y, plot["non_consensus_pct"], left=plot["pct_with_cnv_consensus_call"], color="#D0D0D0", label="Other cells in primary malignant set")
     labels = [f"{r.display_state} (n={int(r.n_cells):,})" for r in plot.itertuples(index=False)]
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
     ax.set_xlim(0, 100)
     ax.set_xlabel("Cells in state (%)")
     ax.invert_yaxis()
-    ax.legend(frameon=False, loc="lower right")
+    ax.set_ylim(len(plot) - 0.5, -1.25)
+    ax.set_title("CNV-consensus support across epithelial states", loc="left", fontsize=8, pad=2)
+    ax.legend(frameon=False, loc="upper left", ncol=2, fontsize=6.2, borderaxespad=0.2, columnspacing=1.5)
     sns.despine(ax=ax, left=True)
     panel_label(ax, "c")
+
+    # Patient-level view prevents pooled-cell percentages from being read as independent replicates.
+    ax = fig.add_subplot(gs[4, 0])
+    state_order = [STATE_DISPLAY[s] for s in STATE_ORDER]
+    x_positions = np.arange(len(state_order))
+    rng = np.random.default_rng(7)
+    for x, state in zip(x_positions, state_order):
+        vals = patient_state.loc[patient_state["state"].eq(state), "cnv_fraction"].to_numpy()
+        if len(vals) == 0:
+            continue
+        jitter = rng.uniform(-0.12, 0.12, size=len(vals))
+        ax.scatter(np.full(len(vals), x) + jitter, vals * 100, s=13, color="#4C72B0", alpha=0.78, edgecolor="white", linewidth=0.3)
+        ax.plot([x - 0.17, x + 0.17], [np.median(vals) * 100] * 2, color="#222222", lw=1.2, solid_capstyle="round")
+    counts = patient_state.groupby("state", observed=False)["patient"].nunique()
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels([f"{s}\n(n={int(counts.get(s, 0))})" for s in state_order], rotation=0, ha="center", fontsize=6.2)
+    ax.set_ylabel("CNV-consensus support (%)")
+    ax.set_title("Patient-level CNV support by state (≥10-cell units)", loc="left", fontsize=8, pad=2)
+    ax.set_ylim(-3, 103)
+    ax.grid(axis="y", color="#E5E7EB", lw=0.5)
+    ax.set_axisbelow(True)
+    sns.despine(ax=ax)
+    panel_label(ax, "d")
+
+    # Restricted-set composition makes patient dominance explicit.
+    ax = fig.add_subplot(gs[4, 1])
+    y = np.arange(len(composition))
+    ax.barh(y, composition["restricted_fraction"] * 100, color="#D9A441", height=0.55)
+    ax.set_yticks(y)
+    ax.set_yticklabels(composition["patient"], fontsize=7)
+    ax.invert_yaxis()
+    ax.set_xlim(0, 100)
+    ax.set_xlabel("Share of restricted set (%)")
+    ax.set_title("Restricted-set patient composition", loc="left", fontsize=8, pad=2)
+    for yi, row in enumerate(composition.itertuples(index=False)):
+        pct = row.restricted_fraction * 100
+        inside = pct > 25
+        ax.text(
+            pct - 2 if inside else pct + 2,
+            yi,
+            f"{row.n_restricted_cells:,} cells ({pct:.1f}%)",
+            va="center",
+            ha="right" if inside else "left",
+            color="white" if inside else "#222222",
+            fontsize=6.2,
+            fontweight="semibold" if inside else "normal",
+        )
+    ax.grid(axis="x", color="#E5E7EB", lw=0.5)
+    ax.set_axisbelow(True)
+    sns.despine(ax=ax)
+    panel_label(ax, "e")
+
     save_all(fig, "Supplementary_Figure1_CNV_malignant_epithelial_selection")
 
 
@@ -451,7 +595,8 @@ def main() -> None:
     candidate_matrix = build_candidate_tier_matrix(obs)
     state_audit = build_state_malignancy_audit(obs)
     update_workbooks(candidate_matrix, state_audit)
-    plot_supplementary_figure1(state_audit)
+    patient_state, composition, score_sensitivity = load_supplementary_cnv_audit_data()
+    plot_supplementary_figure1(state_audit, patient_state, composition, score_sensitivity)
     print("Candidate tiers:")
     print(candidate_matrix[["gene", "candidate_tier", "n_runs_detected", "n_ucsc_score_ge_300_motif_peak_links_in_window", "n_samples_with_motif_peak_in_window", "n_promoter_2kb_motif_peak_links"]].to_string(index=False))
     print("Updated workbooks and supplementary figures in", OUT)

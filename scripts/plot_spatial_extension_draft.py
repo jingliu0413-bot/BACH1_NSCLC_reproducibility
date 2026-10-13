@@ -22,6 +22,7 @@ SPATIAL_DIR = ROOT / "data" / "spatial_candidates" / "GSE292299_spatial_extracte
 RAW = OUT / "GSE292299_spatial_moran_permutation_summary.csv"
 QC = OUT / "GSE292299_spatial_residualized_sensitivity.csv"
 STATE = OUT / "GSE292299_spatial_state_pc_block_null.csv"
+RAW_BLOCK_NULL = OUT / "GSE292299_spatial_raw_block_null.csv"
 BLOCK_SENSITIVITY = OUT / "GSE292299_spatial_block_size_sensitivity.csv"
 
 SAMPLE_COLORS = {
@@ -91,13 +92,15 @@ def representative_maps(fig, axes, spots: pd.DataFrame) -> None:
         ax.scatter(x, y, c=values, s=2.8, alpha=0.76, cmap=cmap, norm=norm, linewidths=0)
         ax.set_xlim(0, image.shape[1])
         ax.set_ylim(image.shape[0], 0)
-        ax.set_title(title, fontsize=7.8, pad=4)
+        ax.set_title(title, fontsize=7.8, pad=6)
         ax.axis("off")
         mappable = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
         mappable.set_array(values)
-        colorbar = fig.colorbar(mappable, ax=ax, fraction=0.045, pad=0.02, shrink=0.72)
+        # Keep each map, its colorbar, and the next map visually distinct in
+        # the compressed top row of the composite figure.
+        colorbar = fig.colorbar(mappable, ax=ax, fraction=0.04, pad=0.035, shrink=0.70)
         colorbar.ax.tick_params(labelsize=5.8, length=2)
-        colorbar.set_label("Score", fontsize=5.8, labelpad=1)
+        colorbar.set_label("Score", fontsize=5.8, labelpad=2.5)
 
 
 def paired_plot(ax, table: pd.DataFrame, raw_col: str, state_col: str, ylabel: str, title: str) -> None:
@@ -135,11 +138,11 @@ def raw_program_plot(ax, raw: pd.DataFrame) -> None:
     ax.spines[["top", "right"]].set_visible(False)
 
 
-def observed_vs_block_null_plot(ax, raw: pd.DataFrame, state: pd.DataFrame) -> None:
+def observed_vs_block_null_plot(ax, raw: pd.DataFrame, raw_block: pd.DataFrame) -> None:
     samples = ["NSCLC_P5", "NSCLC_P8", "NSCLC_P12", "NSCLC_P15"]
     for sample in samples:
         raw_row = raw[raw["sample"].eq(sample)].iloc[0]
-        null_row = state[state["sample"].eq(sample)].iloc[0]
+        null_row = raw_block[raw_block["sample"].eq(sample)].iloc[0]
         color = SAMPLE_COLORS[sample]
         observed = raw_row["bivariate_moran_I"]
         null_mean = null_row["block_null_mean"]
@@ -155,15 +158,16 @@ def observed_vs_block_null_plot(ax, raw: pd.DataFrame, state: pd.DataFrame) -> N
             fmt="o",
             color=color,
             ecolor=color,
-            elinewidth=1.0,
-            capsize=2.5,
-            markersize=5,
+            elinewidth=1.7,
+            capsize=4.5,
+            capthick=1.4,
+            markersize=5.5,
             zorder=3,
         )
     ax.axhline(0, color="#777777", lw=0.7)
-    ax.set_xticks([0, 1], ["Observed", "Block-null\nmean (20×20)"])
+    ax.set_xticks([0, 1], ["Observed", "Raw block-null\nmean (20×20)"])
     ax.set_ylabel("Bivariate Moran's I")
-    ax.set_title("Spatial concordance exceeds\nlocal block-null expectation", fontsize=8.6, fontweight="semibold")
+    ax.set_title("Raw spatial concordance exceeds\nlocal block-null expectation", fontsize=8.6, fontweight="semibold")
     ax.set_xlim(-0.25, 1.25)
     ax.spines[["top", "right"]].set_visible(False)
     ax.text(0.98, 0.96, "Error bars: 95% permutation interval", transform=ax.transAxes, ha="right", va="top", fontsize=6.5)
@@ -181,15 +185,28 @@ def block_size_plot(ax, sensitivity: pd.DataFrame) -> None:
             marker="o",
             lw=1.1,
             color=SAMPLE_COLORS[sample],
-            label=sample.replace("NSCLC_", ""),
+            label={
+                "NSCLC_P5": "P5 (LUAD)",
+                "NSCLC_P8": "P8 (LUAD)",
+                "NSCLC_P12": "P12 (LUAD)",
+                "NSCLC_P15": "P15 (LUSC)",
+            }[sample],
         )
     ax.axhline(0, color="#777777", lw=0.7)
     ax.set_xlabel("Block size (array coordinates)")
     ax.set_ylabel("Observed − block-null mean Moran's I")
-    ax.set_title("Block-size sensitivity", fontsize=9)
+    ax.set_title("Block-size sensitivity", fontsize=9, pad=24)
     ax.set_xticks([10, 15, 20, 30])
     ax.spines[["top", "right"]].set_visible(False)
-    ax.legend(frameon=False, ncol=4, fontsize=7, loc="upper right")
+    ax.legend(
+        frameon=False,
+        ncol=4,
+        fontsize=7,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.02),
+        columnspacing=1.0,
+        handletextpad=0.4,
+    )
 
 
 def main() -> None:
@@ -197,6 +214,7 @@ def main() -> None:
     raw = pd.read_csv(RAW)
     qc = pd.read_csv(QC)
     state = pd.read_csv(STATE)
+    raw_block = pd.read_csv(RAW_BLOCK_NULL)
     sensitivity = pd.read_csv(BLOCK_SENSITIVITY)
     raw_pair = raw[raw["comparison"].eq("DoRothEA_vs_hypoxia")].copy()
     state_pair = state[state["comparison"].eq("DoRothEA_vs_hypoxia")].copy()
@@ -239,23 +257,24 @@ def main() -> None:
     ax_a.set_ylim(0, 1)
     ax_a.text(0.0, 0.98, "Independent spatial cohort", fontsize=9.2, fontweight="semibold", va="top")
     ax_a.text(0.0, 0.89, "GSE292299", fontsize=7.2, color="#555555", va="top")
-    ax_a.text(0.08, 0.82, "Section", fontsize=7, fontweight="semibold", va="center")
-    ax_a.text(0.32, 0.82, "Histology", fontsize=7, fontweight="semibold", va="center")
-    ax_a.text(0.66, 0.82, "Spots", fontsize=7, fontweight="semibold", va="center")
+    ax_a.text(0.09, 0.78, "Section", fontsize=7, fontweight="semibold", va="center")
+    ax_a.text(0.36, 0.78, "Histology", fontsize=7, fontweight="semibold", va="center")
+    ax_a.text(0.66, 0.78, "Spots", fontsize=7, fontweight="semibold", va="center")
+    ax_a.plot([0.08, 0.98], [0.745, 0.745], color="#D9D9D9", lw=0.6)
     rows = [
-        ("P5", "LUAD", "5,388 spots"),
-        ("P8", "LUAD", "5,218 spots"),
-        ("P12", "LUAD", "2,131 spots"),
-        ("P15", "LUSC", "13,002 spots"),
+        ("P5", "LUAD", "5,388"),
+        ("P8", "LUAD", "5,218"),
+        ("P12", "LUAD", "2,131"),
+        ("P15", "LUSC", "13,002"),
     ]
     for i, (sample, hist, n) in enumerate(rows):
-        y = 0.72 - i * 0.16
+        y = 0.65 - i * 0.15
         ax_a.scatter(0.03, y, color=SAMPLE_COLORS[f"NSCLC_{sample}"], s=32)
-        ax_a.text(0.08, y, sample, fontsize=8, va="center")
-        ax_a.text(0.32, y, hist, fontsize=8, va="center")
+        ax_a.text(0.09, y, sample, fontsize=8, va="center")
+        ax_a.text(0.36, y, hist, fontsize=8, va="center")
         ax_a.text(0.66, y, n, fontsize=8, va="center")
 
-    map_grid = top_grid[0, 1].subgridspec(1, 3, wspace=0.04)
+    map_grid = top_grid[0, 1].subgridspec(1, 3, wspace=0.12)
     map_axes = [fig.add_subplot(map_grid[0, i]) for i in range(3)]
     add_top_letter(fig, ax_a, "a")
     add_top_letter(fig, map_axes[0], "b")
@@ -276,7 +295,7 @@ def main() -> None:
 
     ax_d = fig.add_subplot(grid[1, 1])
     add_letter(ax_d, "d")
-    observed_vs_block_null_plot(ax_d, raw_pair, state_pair)
+    observed_vs_block_null_plot(ax_d, raw_pair, raw_block)
 
     ax_e = fig.add_subplot(grid[2, :])
     add_letter(ax_e, "e")
@@ -294,7 +313,7 @@ def main() -> None:
         fontweight="semibold",
     )
     ax_e.spines[["top", "right"]].set_visible(False)
-    ax_e.legend(frameon=False, ncol=4, fontsize=7, loc="upper right")
+    ax_e.legend(frameon=False, ncol=4, fontsize=7, loc="upper right", bbox_to_anchor=(1.0, 0.90))
 
     fig.savefig(OUT / "GSE292299_spatial_extension_draft.png", dpi=250, bbox_inches="tight")
     fig.savefig(OUT / "GSE292299_spatial_extension_draft.pdf", bbox_inches="tight")
@@ -305,10 +324,8 @@ def main() -> None:
     # Block-size sensitivity is retained as a reviewer-facing methodological
     # check rather than a main biological panel.
     fig_sup, ax_sup = plt.subplots(figsize=(5.4, 3.8))
-    add_letter(ax_sup, "a")
     block_size_plot(ax_sup, sensitivity)
-    fig_sup.suptitle("Supplementary Figure 5. Spatial block-size sensitivity", fontsize=10, fontweight="bold")
-    fig_sup.tight_layout(rect=[0, 0, 1, 0.94])
+    fig_sup.tight_layout(rect=[0, 0, 1, 0.84])
     fig_sup.savefig(OUT / "Supplementary_Figure5_spatial_block_size_sensitivity.png", dpi=250, bbox_inches="tight")
     fig_sup.savefig(OUT / "Supplementary_Figure5_spatial_block_size_sensitivity.pdf", bbox_inches="tight")
     plt.close(fig_sup)
