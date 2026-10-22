@@ -1,22 +1,25 @@
 # BACH1 regulatory-context analysis in NSCLC
 
-This repository contains the reproducible analysis code, environment files, documentation and lightweight source tables for the NSCLC BACH1 manuscript. The current code release matches the spatially extended manuscript submission package prepared on 2026-10-05.
+This branch (`manuscript-v1-hypoxia-states`, release tag `v1.0-hypoxia-states`) is the code and source-data release for the manuscript
+
+> Liu J, Tang H, Golpon H, Dzik R, Janciauskiene S. *Patient-resolved single-cell analysis links a BACH1-associated transcriptional score to hypoxia-related epithelial states in non-small cell lung cancer.* (submitted, October 2026)
+
+The submitted manuscript, figures and supplementary workbook are in `submission/`. Later analyses on `main` (spatial transcriptomics extension, immunotherapy feasibility work) are not part of this manuscript; see "Scope of this release" below.
 
 ## Analysis Scope
 
 - GSE131907 scRNA-seq: lung tumour and adjacent lung cells.
 - GSE274934 scRNA-seq: nine tumour GEX samples.
-- GSE274934 scATAC-seq: five author-filtered tumour samples.
-- GSE292299 spatial transcriptomics: four NSCLC tissue sections used for independent spatial replication.
+- GSE274934 scATAC-seq: five author-filtered tumour samples (28,500 cells; 640,447 sample-specific peaks).
 - TCGA-LUAD and TCGA-LUSC: bulk primary tumour score-association replication.
 
-The primary single-cell analysis uses a 13,694-cell malignant epithelial set from 16 patients. The pySCENIC sensitivity analysis uses a 4,906-cell restricted CNV-consensus set and summarizes BACH1 target recurrence across seeds 777-781. scATAC-seq is used as tumour-tissue proximal accessible-motif context, not as proof of direct BACH1 binding.
+The primary single-cell analysis uses a 13,694-cell malignant epithelial set from 16 patients. The pySCENIC analysis uses a 4,906-cell restricted CNV-consensus set (a subset of the primary set) and summarizes BACH1 target recurrence across seeds 777-781. scATAC-seq is used as tumour-tissue proximal accessible-motif context, not as proof of direct BACH1 binding.
 
 ## Repository Contents
 
 - `scripts/`: download, preprocessing, analysis, robustness, plotting and supplementary-table preparation scripts.
 - `environment/`: pinned analysis and pySCENIC environments.
-- `source_data/`: lightweight source tables; `source_data/manuscript_submission_20260911/` contains the manuscript source tables and spatial state-de-overlap audit tables.
+- `source_data/`: lightweight source tables; `source_data/manuscript_submission_20260911/` contains the manuscript source tables (spatial audit tables in the same folder belong to the later extension).
 - `resources/`: instructions and checksums for external resources; large third-party databases are downloaded locally and not committed.
 - `docs/`: workflow and data/resource manifests.
 
@@ -73,6 +76,7 @@ python scripts/run_external_bach1_activity_analysis.py
 python scripts/run_bach1_hypoxia_robustness.py
 python scripts/run_final_inference_sensitivity.py
 python scripts/run_tcga_bach1_hypoxia_validation.py
+python scripts/run_state_specificity_clinical_revision.py   # epithelial states, within-state tests, pan-TF benchmark, cohort split
 ```
 
 Activate the isolated pySCENIC environment for the restricted-consensus full-TF runs:
@@ -107,15 +111,10 @@ python scripts/compare_pyscenic_seed_stability.py \
 
 python scripts/run_bach1_atac_motif_support_ucsc_targeted.py --query-mode bed
 python scripts/plot_supplementary_figure5_scatac_target_window_context.py
-python scripts/run_spatial_external_score_feasibility.py
-python scripts/run_spatial_state_context_analysis.py
-python scripts/run_spatial_state_deoverlap_sensitivity.py
-python scripts/run_spatial_state_pc_block_null.py
-python scripts/plot_spatial_extension_draft.py
 python scripts/replot_figure4_pyscenic_from_source_data.py
 python scripts/plot_bach1_story_4figures_10kb.py
 python scripts/plot_cnv_supplement_figure_s1.py
-python scripts/plot_spatial_skill_supplement_figure3.py
+python scripts/plot_pan_tf_tcga_figure.py                 # Figure 4
 python scripts/prepare_supplementary_tables.py
 ```
 
@@ -125,15 +124,27 @@ manuscript release. They are not required to reproduce the current Figures
 
 Detailed inputs, outputs and fixed analysis definitions are listed in `docs/WORKFLOW.md`.
 
-## Current Manuscript Positioning
+## Figure and table map
 
-- The central result is a patient-level DoRothEA-derived BACH1 score associated with a hypoxia-related transcriptional context in primary NSCLC malignant epithelium.
-- The de-overlapped DoRothEA-hypoxia matched-null analysis uses an independent 81-gene null distribution after excluding ALDOA, HMOX1 and IL6.
-- TCGA-LUAD/LUSC provides bulk tumour replication of the score association.
-- pySCENIC provides seed-sensitive recurrent candidate prioritisation, with five-seed recurrence summarized independently from the seed-777 visualization.
-- scATAC-seq provides tumour-tissue accessible-motif support for candidate prioritisation.
-- Independent spatial transcriptomics reproduces positive BACH1-score/hypoxia covariance across four tissue sections, with attenuation after epithelial-state adjustment.
-- Spatial block-null and state-de-overlap analyses are retained as reproducibility checks for the spatial extension; the earlier exploratory NOD analysis is not part of the submission package.
+| Manuscript item | Script(s) | Source table(s) |
+|---|---|---|
+| Fig. 1 atlas, malignant epithelium, BACH1 detection | integrate_nsclc_scrna.py, run_scanpy_*, run_epithelial_*, combine_epithelial_cnv_calls.py, run_bach1_malignant_epithelial_analysis.py, rebuild_final_figure_architecture.py | source_data/figure1_* |
+| Fig. 2 BACH1 scores, DoRothEA-hypoxia, LOPO, matched null | run_external_bach1_activity_analysis.py, run_bach1_hypoxia_robustness.py, plot_streamlined_figure2.py | figure2c_within_patient_score_comparison_holm_family.csv, dorothea_hypoxia_deoverlap_*, matched_random_gene_set_* |
+| Fig. 3 epithelial states, attenuation, within-state tests | run_final_inference_sensitivity.py, run_state_specificity_clinical_revision.py | patient_level_residualized_*, per_patient_qc_adjusted_*, Supplementary Table 4E-4M |
+| Fig. 4 pan-TF benchmark, cohort split, TCGA | run_state_specificity_clinical_revision.py, run_tcga_bach1_hypoxia_validation.py, plot_pan_tf_tcga_figure.py | dorothea_all_tf_hypoxia_contextual_benchmark.csv, scrna_cohort_split_dorothea_hypoxia_correlations.csv, tcga_* |
+| Fig. 5, Suppl. Fig. 2 pySCENIC and scATAC candidate context | run_pyscenic_all_tfs.py, compare_pyscenic_seed_stability.py, run_bach1_atac_motif_support_ucsc_targeted.py, replot_figure4_pyscenic_from_source_data.py, plot_supplementary_figure5_scatac_target_window_context.py | pyscenic_consensus_full_tf_seed_stability/, gse274934_atac_*, figure4*_current_* |
+| Suppl. Fig. 1 CNV selection | plot_cnv_supplement_figure_s1.py | source_data/figure1_*cnv* |
+| Supplementary Table workbook | prepare_supplementary_tables.py | submission/Supplementary_Table.xlsx |
+
+Source tables for this manuscript are in `source_data/manuscript_submission_20260911/` (the folder name reflects the date the table layout was frozen). Changes made when this release was frozen are listed in `docs/RELEASE_NOTES_v1.0.md`.
+
+## Scope of this release
+
+Scripts present in the repository but not used for this manuscript: `*spatial*`, `prepare_spatial_rctd_inputs.py`, `run_spatial_rctd_spacexr.R`, `score_spatial_stable_bach1_regulon.py`, `summarize_spatial_rctd_results.py`, `analyze_emtab13530_bach1_nod.py`, `download_emtab13530.py`, `plot_bach1_nod_like_pathway.py`, `plot_figure5_formal_spatial_bach1_nod_validation.py`, `run_oak_poplar_ici_interaction.py`, `run_gse243013_state_mpr_feasibility.py`, `update_manuscript_spatial_methods.py`, `update_supplementary_*`, and the GSE292299 / spatial / E-MTAB-13530 tables in `source_data/`. They belong to later or exploratory analyses.
+
+## Resources
+
+DoRothEA (confidence A-C) and CollecTRI networks used for scoring were retrieved through decoupler/OmniPath on 2026-09-10 and are included in `resources/bach1_external_signatures/` so that scores can be reproduced without a live download. Large reference databases (cisTarget rankings, GENCODE annotation, JASPAR bigBed) are not redistributed; see `resources/README.md` and `scripts/download_reference_resources.py`.
 
 ## License
 

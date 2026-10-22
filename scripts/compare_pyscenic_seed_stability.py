@@ -18,6 +18,8 @@ DEFAULT_RUNS = {
     "seed777": OUTPUT_DIR / "bach1_malignant_epithelial_consensus_pyscenic_all_tfs",
     "seed778": OUTPUT_DIR / "bach1_malignant_epithelial_consensus_pyscenic_all_tfs_seed778",
     "seed779": OUTPUT_DIR / "bach1_malignant_epithelial_consensus_pyscenic_all_tfs_seed779",
+    "seed780": OUTPUT_DIR / "bach1_malignant_epithelial_consensus_pyscenic_all_tfs_seed780",
+    "seed781": OUTPUT_DIR / "bach1_malignant_epithelial_consensus_pyscenic_all_tfs_seed781",
 }
 OUT = OUTPUT_DIR / "revision_diagnostics"
 

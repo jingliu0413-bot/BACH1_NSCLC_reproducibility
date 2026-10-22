@@ -1,0 +1,27 @@
+{
+  "n_completed_runs": 5,
+  "runs": [
+    "seed777",
+    "seed778",
+    "seed779",
+    "seed780",
+    "seed781"
+  ],
+  "missing_or_incomplete": [],
+  "n_union_targets": 331,
+  "n_targets_detected_in_all_runs": 2,
+  "stable60_min_runs": 3,
+  "n_targets_detected_in_at_least_60pct_runs": 46,
+  "stable70_min_runs": 4,
+  "n_targets_detected_in_at_least_70pct_runs": 14,
+  "mean_pairwise_jaccard": 0.1429047089675915,
+  "outputs": {
+    "run_summary": "out/revision_diagnostics/pyscenic_bach1_consensus_full_tf_seed_stability_v1/pyscenic_bach1_seed_stability_run_summary.csv",
+    "pairwise_jaccard": "out/revision_diagnostics/pyscenic_bach1_consensus_full_tf_seed_stability_v1/pyscenic_bach1_seed_stability_pairwise_jaccard.csv",
+    "target_frequency": "out/revision_diagnostics/pyscenic_bach1_consensus_full_tf_seed_stability_v1/pyscenic_bach1_seed_stability_target_frequency.csv",
+    "core_100pct": "out/revision_diagnostics/pyscenic_bach1_consensus_full_tf_seed_stability_v1/pyscenic_bach1_core_100pct_targets.csv",
+    "stable_ge70pct": "out/revision_diagnostics/pyscenic_bach1_consensus_full_tf_seed_stability_v1/pyscenic_bach1_stable_ge70pct_targets.csv",
+    "stable_ge60pct": "out/revision_diagnostics/pyscenic_bach1_consensus_full_tf_seed_stability_v1/pyscenic_bach1_stable_ge60pct_targets.csv",
+    "extended_union": "out/revision_diagnostics/pyscenic_bach1_consensus_full_tf_seed_stability_v1/pyscenic_bach1_extended_union_targets.csv"
+  }
+}

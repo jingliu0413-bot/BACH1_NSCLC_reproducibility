@@ -1,0 +1,6 @@
+sample,n_cells_in_filtered_peak_matrix,n_called_cells_singlecell_csv,median_passed_filters,median_TSS_fragments,median_peak_region_fragments,median_blacklist_region_fragments
+AL05,8872,8872,10719.5,3929.5,5815.5,0.0
+AL08,4116,4116,10696.5,2456.5,2434.5,0.0
+AL10,8389,8389,15501.0,6579.0,11615.0,0.0
+AL11,2075,2075,13241.0,3081.0,4361.0,0.0
+AL12,5048,5048,7490.5,1683.5,1684.5,0.0

@@ -44,7 +44,9 @@ resources/**/*.gtf.gz
 resources/**/*.tsv.gz
 resources/pyscenic/
 resources/atac_motif_support/
-resources/bach1_external_signatures/
+resources/bach1_external_signatures/*
+!resources/bach1_external_signatures/dorothea_human_ABC_decoupler.csv
+!resources/bach1_external_signatures/collectri_human_decoupler.csv
 
 # Local handoff notes and manuscript build artifacts are not part of the public code release.
 docs/CODEX_HANDOFF_CN.md

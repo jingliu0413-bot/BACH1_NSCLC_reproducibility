@@ -1,0 +1,34 @@
+{
+  "date": "2026-09-10",
+  "resource_note": "UCSC native hg38 jaspar2026 bigBed was used as a fallback because the JASPAR Mencius per-motif TFBS TSV server was unreachable locally.",
+  "ucsc_bigbed": "http://hgdownload.soe.ucsc.edu/gbdb/hg38/jaspar/JASPAR2026.bb",
+  "motif_models": {
+    "MA1633.2": "BACH1",
+    "MA0591.2": "Bach1::Mafk"
+  },
+  "ucsc_score_note": "UCSC bigBed score scale differs from the repository's original JASPAR TSV high-confidence threshold of 950; score-threshold rows are reported as UCSC-specific sensitivity checks.",
+  "n_bach1_targets": 46,
+  "n_targets_with_gencode_coordinates": 45,
+  "n_atac_samples": 5,
+  "atac_samples": [
+    "AL05",
+    "AL08",
+    "AL10",
+    "AL11",
+    "AL12"
+  ],
+  "n_atac_sample_specific_peaks": 640447,
+  "n_ucsc_bach1_mafk_tfbs_hits_in_target_windows": 3746,
+  "n_ucsc_failed_windows": 0,
+  "n_motif_positive_sample_specific_peaks_in_target_windows": 497,
+  "window_bp": 10000,
+  "n_bach1_targets_with_atac_motif_support_in_window": 44,
+  "n_bach1_targets_with_proximal_10kb_motif_peak": 44,
+  "n_bach1_targets_with_promoter_2kb_motif_peak": 41,
+  "outputs": {
+    "integrated_target_support": "out/bach1_atac_motif_support_consensus_full_tf_5seed_stable_ge60_ucsc_targeted_10kb/tables/pyscenic_bach1_targets_with_ucsc_jaspar2026_atac_support.csv",
+    "target_links": "out/bach1_atac_motif_support_consensus_full_tf_5seed_stable_ge60_ucsc_targeted_10kb/tables/bach1_regulon_targets_atac_motif_peak_links_target_windows.csv.gz",
+    "motif_peaks": "out/bach1_atac_motif_support_consensus_full_tf_5seed_stable_ge60_ucsc_targeted_10kb/tables/gse274934_atac_bach1_motif_positive_peaks_target_windows.csv.gz",
+    "ucsc_hits": "out/bach1_atac_motif_support_consensus_full_tf_5seed_stable_ge60_ucsc_targeted_10kb/tables/ucsc_jaspar2026_bach1_mafk_hits_in_target_windows.tsv.gz"
+  }
+}
